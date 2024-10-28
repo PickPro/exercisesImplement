@@ -49,8 +49,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var countTextView: TextView
     private lateinit var stageTextView: TextView
 
-    private var count = 0 // Initializes a counter for landmarks.
-    private var stage = "None" // Initializes a stage for the exercise.
+    // TextViews to display angles
+    private lateinit var angle1TextView: TextView
+    private lateinit var angle2TextView: TextView
+
+    private var count = 0
+    private var stage: String? = null
+
+    // OverlayView for drawing landmarks
+    private lateinit var overlayView: OverlayView
 
     // The onCreate function is called when the activity is starting.
     // 'override' indicates that this function overrides a function in the superclass.
@@ -70,6 +77,13 @@ class MainActivity : AppCompatActivity() {
         // Initialize TextViews for displaying count and stage
         countTextView = findViewById(R.id.countTextView)
         stageTextView = findViewById(R.id.stageTextView)
+
+        // Initialize TextViews for displaying angles
+        angle1TextView = findViewById(R.id.angle1TextView)
+        angle2TextView = findViewById(R.id.angle2TextView)
+
+        // Initialize OverlayView
+        overlayView = findViewById(R.id.overlayView)
 
         requestCameraPermission() // Initiates the process to request camera permission from the user.
     }
@@ -101,7 +115,7 @@ class MainActivity : AppCompatActivity() {
     private fun initializePoseLandmarker() {
         // BaseOptions is used to configure the model for the pose landmarker.
         val baseOptions = BaseOptions.builder()
-            .setModelAssetPath("pose_landmarker_full.task") // Specifies the path to the model asset file.
+            .setModelAssetPath("pose_landmarker_lite.task") // Specifies the path to the model asset file.
             .build()
 
         // Configures the PoseLandmarker with options.
@@ -125,6 +139,11 @@ class MainActivity : AppCompatActivity() {
                     // Access the first set of landmarks (for the first detected person)
                     val landmarks = allLandmarks[0]
 
+                    // Update UI elements on the main thread
+                    runOnUiThread {
+                        // Update the overlay view with the landmarks
+                        overlayView.setLandmarks(landmarks)
+
                     // Define points for left and right hips, knees, ankles, and shoulders
                     val leftHip = landmarks[23]
                     val leftKnee = landmarks[25]
@@ -134,6 +153,8 @@ class MainActivity : AppCompatActivity() {
                     val rightAnkle = landmarks[28]
                     val leftShoulder = landmarks[11]
                     val rightShoulder = landmarks[12]
+
+
 
                     // Check if all necessary landmarks are detected
                     if (leftHip != null && leftKnee != null && leftAnkle != null &&
@@ -174,7 +195,7 @@ class MainActivity : AppCompatActivity() {
                             if ((angleLeftHip > 175 || angleRightHip > 175) && (angleLeftKnee > 175 || angleRightKnee > 175)) {
                                 stage = "Down"
                             }
-                            if ((angleLeftHip < 95 || angleRightHip < 95) && stage == "Down" && (angleLeftKnee > 175 || angleRightKnee > 175)) {
+                            if ((angleLeftHip > 90 && angleLeftHip < 100) || (angleRightHip > 90 && angleRightHip < 100) && stage == "Down" && (angleLeftKnee > 175 || angleRightKnee > 175)) {
                                 stage = "Up"
                                 count++
                             }
@@ -182,11 +203,18 @@ class MainActivity : AppCompatActivity() {
                             // Update TextViews
                             countTextView.text = "Reps: $count"
                             stageTextView.text = "Stage: $stage"
+                            angle1TextView.text = "Angle1: $angleLeftHip"
+                            angle2TextView.text = "Angle2: $angleLeftKnee"
                         }
                     }
 
-                } else {
+                } }else {
                     Log.d("PoseLandmarks", "No landmarks detected.")
+                    // Clear the overlay if no landmarks are detected
+                    runOnUiThread {
+                        overlayView.setLandmarks(mutableListOf())
+
+                    }
                 }
             }
             .build()
