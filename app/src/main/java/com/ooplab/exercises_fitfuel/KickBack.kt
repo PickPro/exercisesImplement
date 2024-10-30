@@ -29,28 +29,30 @@ import kotlin.math.atan2
 import android.media.MediaPlayer
 import android.os.Handler
 import android.os.Looper
-
 private var isAudioPlaying = false
 
-var riseUpCounter = 0
+var kickBackCount = 0
 
-class MainActivity : AppCompatActivity() {
+class KickBack : AppCompatActivity() {
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var previewView: PreviewView
     private lateinit var poseLandmarker: PoseLandmarker
     private lateinit var countTextView: TextView
     private lateinit var stageTextView: TextView
-    private lateinit var angle1TextView: TextView
-    private lateinit var angle2TextView: TextView
+    private lateinit var angleTextView: TextView
 
     private var count = 0
     private var stage: String? = null
 
+    private val kickAudioFiles = listOf(
+        R.raw.up_2, R.raw.up_3, R.raw.up_4, R.raw.up_5, R.raw.up_6,R.raw.up_7,
+        R.raw.up_8,R.raw.up_9,R.raw.up_10
+    )
     private val repCompleteAudioFiles = listOf(
-        R.raw.motivational1, R.raw.motivational2, R.raw.motivational3,
-        R.raw.motivational4, R.raw.motivational5, R.raw.motivational6,
+        R.raw.motivational1, R.raw.motivational2 ,R.raw.motivational3,
+        R.raw.motivational4,R.raw.motivational5,R.raw.motivational6,
         R.raw.motivational7,R.raw.motivational8,R.raw.motivational9,
-        R.raw.motivational10,
+        R.raw.motivational10
     )
     private val noActivityAudioFiles = listOf(
         R.raw.no_activity_1, R.raw.no_activity_2, R.raw.no_activity_3,
@@ -62,32 +64,32 @@ class MainActivity : AppCompatActivity() {
 
     private fun resetInactivityTimer() {
         inactivityHandler.removeCallbacks(inactivityRunnable)
-        inactivityHandler.postDelayed(inactivityRunnable, 10000)
+        inactivityHandler.postDelayed(inactivityRunnable, 5000) // Set to 10 seconds of inactivity
     }
 
     private val inactivityRunnable = object : Runnable {
         override fun run() {
             if (!isAudioPlaying) {
-                playRandomAudio(noActivityAudioFiles)
+                playRandomAudio(noActivityAudioFiles) // Play a random "no activity" audio if inactive
             }
-            inactivityHandler.postDelayed(this, 5000)
+            inactivityHandler.postDelayed(this, 10000) // Repeat every 10 seconds if still inactive
         }
     }
+
 
     private var mediaPlayer: MediaPlayer? = null
     private lateinit var overlayView: OverlayView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        setContentView(R.layout.activity_kick_back)
         setupEdgeToEdge()
         initCameraExecutor()
 
         previewView = findViewById(R.id.previewCam)
         countTextView = findViewById(R.id.countTextView)
         stageTextView = findViewById(R.id.stageTextView)
-        angle1TextView = findViewById(R.id.angle1TextView)
-        angle2TextView = findViewById(R.id.angle2TextView)
+        angleTextView = findViewById(R.id.angle1TextView)
         overlayView = findViewById(R.id.overlayView)
 
         requestCameraPermission()
@@ -122,50 +124,33 @@ class MainActivity : AppCompatActivity() {
                     runOnUiThread {
                         overlayView.setLandmarks(landmarks)
 
-                        val leftHip = landmarks[23]
-                        val leftKnee = landmarks[25]
-                        val leftAnkle = landmarks[27]
-                        val rightHip = landmarks[24]
-                        val rightKnee = landmarks[26]
-                        val rightAnkle = landmarks[28]
+                        val hip = landmarks[23]
+                        val knee = landmarks[25]
+                        val ankle = landmarks[27]
 
-                        if (leftHip != null && leftKnee != null && leftAnkle != null &&
-                            rightHip != null && rightKnee != null && rightAnkle != null
-                        ) {
-                            val angleLeftKnee = calculateAngle(
-                                leftHip.x(), leftHip.y(),
-                                leftKnee.x(), leftKnee.y(),
-                                leftAnkle.x(), leftAnkle.y()
-                            )
-
-                            val angleRightKnee = calculateAngle(
-                                rightHip.x(), rightHip.y(),
-                                rightKnee.x(), rightKnee.y(),
-                                rightAnkle.x(), rightAnkle.y()
+                        if (hip != null && knee != null && ankle != null) {
+                            val angleKnee = calculateAngle(
+                                hip.x(), hip.y(),
+                                knee.x(), knee.y(),
+                                ankle.x(), ankle.y()
                             )
 
                             runOnUiThread {
-                                if (angleLeftKnee > 170 && angleRightKnee > 170) {
-                                    stage = "Down"
+                                if (angleKnee > 160) {
+                                    stage = "Kickback"
                                     resetInactivityTimer()
-                                } else if ((angleLeftKnee < 90 || angleRightKnee < 90) && stage == "Down") {
-                                    stage = "Up"
-                                    count++  // Increment the rise-up counter
-                                    resetInactivityTimer()
-                                    playRandomAudio(repCompleteAudioFiles)
+                                } else if (angleKnee < 90 && stage == "Kickback") {
+                                    stage = "Return"
+                                    count++
 
-                                    // Check if 10 rise-ups have been reached
-//                                    if (riseUpCounter == 10) {
-//                                        count++  // Increment the main count
-//                                        playRandomAudio(upAudioFiles)  // Play audio only on every 10th rise-up
-//                                    }
+
+
                                 }
 
                                 // Update the UI
                                 countTextView.text = "Reps: $count"
                                 stageTextView.text = "Stage: $stage"
-                                angle1TextView.text = "Angle1: $angleLeftKnee"
-                                angle2TextView.text = "Angle2: $angleRightKnee"
+                                angleTextView.text = "Angle: $angleKnee"
                             }
                         }
                     }
@@ -283,7 +268,7 @@ class MainActivity : AppCompatActivity() {
 
         val yuvImage = YuvImage(nv21, ImageFormat.NV21, imageProxy.width, imageProxy.height, null)
         val out = ByteArrayOutputStream()
-        yuvImage.compressToJpeg(Rect(0, 0, imageProxy.width, imageProxy.height), 100, out)
+        yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 100, out)
         val imageBytes = out.toByteArray()
         return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
     }
@@ -292,6 +277,6 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         cameraExecutor.shutdown()
         mediaPlayer?.release()
-        mediaPlayer = null
+        inactivityHandler.removeCallbacks(inactivityRunnable)
     }
 }

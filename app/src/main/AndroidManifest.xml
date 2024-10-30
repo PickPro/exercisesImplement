@@ -3,7 +3,11 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-feature android:name="android.hardware.camera" android:required="true" />
+
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="true" />
+
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
@@ -17,14 +21,23 @@
         android:theme="@style/Theme.Exercises_FitFuel"
         tools:targetApi="31">
         <activity
-            android:name=".MainActivity"
+            android:name=".Plank"
+            android:exported="false" />
+        <activity
+            android:name=".Squat"
+            android:exported="false" /> <!-- KickBack Activity as the default launcher activity -->
+        <activity
+            android:name=".KickBack"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity> <!-- MainActivity without intent filter -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false" />
     </application>
 
 </manifest>

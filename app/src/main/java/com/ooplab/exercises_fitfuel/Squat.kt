@@ -29,22 +29,21 @@ import kotlin.math.atan2
 import android.media.MediaPlayer
 import android.os.Handler
 import android.os.Looper
-
 private var isAudioPlaying = false
 
-var riseUpCounter = 0
+var squatCount = 0
 
-class MainActivity : AppCompatActivity() {
+class Squat : AppCompatActivity() {
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var previewView: PreviewView
     private lateinit var poseLandmarker: PoseLandmarker
     private lateinit var countTextView: TextView
     private lateinit var stageTextView: TextView
-    private lateinit var angle1TextView: TextView
-    private lateinit var angle2TextView: TextView
+    private lateinit var angleTextView: TextView
 
     private var count = 0
     private var stage: String? = null
+
 
     private val repCompleteAudioFiles = listOf(
         R.raw.motivational1, R.raw.motivational2, R.raw.motivational3,
@@ -79,21 +78,21 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        setContentView(R.layout.activity_squat)
         setupEdgeToEdge()
         initCameraExecutor()
 
         previewView = findViewById(R.id.previewCam)
         countTextView = findViewById(R.id.countTextView)
         stageTextView = findViewById(R.id.stageTextView)
-        angle1TextView = findViewById(R.id.angle1TextView)
-        angle2TextView = findViewById(R.id.angle2TextView)
+        angleTextView = findViewById(R.id.angle1TextView)
         overlayView = findViewById(R.id.overlayView)
 
         requestCameraPermission()
         resetInactivityTimer()
-    }
 
+
+    }
     private fun setupEdgeToEdge() {
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -106,6 +105,7 @@ class MainActivity : AppCompatActivity() {
         cameraExecutor = Executors.newSingleThreadExecutor()
         initializePoseLandmarker()
     }
+
 
     private fun initializePoseLandmarker() {
         val baseOptions = BaseOptions.builder()
@@ -122,64 +122,54 @@ class MainActivity : AppCompatActivity() {
                     runOnUiThread {
                         overlayView.setLandmarks(landmarks)
 
-                        val leftHip = landmarks[23]
-                        val leftKnee = landmarks[25]
-                        val leftAnkle = landmarks[27]
-                        val rightHip = landmarks[24]
-                        val rightKnee = landmarks[26]
-                        val rightAnkle = landmarks[28]
+                        val hip = landmarks[23]
+                        val knee = landmarks[25]
+                        val ankle = landmarks[27]
 
-                        if (leftHip != null && leftKnee != null && leftAnkle != null &&
-                            rightHip != null && rightKnee != null && rightAnkle != null
-                        ) {
-                            val angleLeftKnee = calculateAngle(
-                                leftHip.x(), leftHip.y(),
-                                leftKnee.x(), leftKnee.y(),
-                                leftAnkle.x(), leftAnkle.y()
-                            )
-
-                            val angleRightKnee = calculateAngle(
-                                rightHip.x(), rightHip.y(),
-                                rightKnee.x(), rightKnee.y(),
-                                rightAnkle.x(), rightAnkle.y()
+                        if (hip != null && knee != null && ankle != null) {
+                            val angleKnee = calculateAngle(
+                                hip.x(), hip.y(),
+                                knee.x(), knee.y(),
+                                ankle.x(), ankle.y()
                             )
 
                             runOnUiThread {
-                                if (angleLeftKnee > 170 && angleRightKnee > 170) {
-                                    stage = "Down"
-                                    resetInactivityTimer()
-                                } else if ((angleLeftKnee < 90 || angleRightKnee < 90) && stage == "Down") {
-                                    stage = "Up"
-                                    count++  // Increment the rise-up counter
-                                    resetInactivityTimer()
-                                    playRandomAudio(repCompleteAudioFiles)
+                                // Angle thresholds for squat
+                                if (angleKnee > 160) { // Standing position
+                                    if (stage == "Squat") {
+                                        // Complete squat detected (down and up)
+                                        stage = "Standing"
+                                        count++
+                                        playRandomAudio(repCompleteAudioFiles)
+                                        resetInactivityTimer()
 
-                                    // Check if 10 rise-ups have been reached
-//                                    if (riseUpCounter == 10) {
-//                                        count++  // Increment the main count
-//                                        playRandomAudio(upAudioFiles)  // Play audio only on every 10th rise-up
-//                                    }
+
+                                    } else {
+                                        stage = "Standing"
+                                    }
+                                } else if (angleKnee < 90 && stage == "Standing") { // Squatting down
+                                    stage = "Squat"
+                                    resetInactivityTimer()
                                 }
 
-                                // Update the UI
-                                countTextView.text = "Reps: $count"
-                                stageTextView.text = "Stage: $stage"
-                                angle1TextView.text = "Angle1: $angleLeftKnee"
-                                angle2TextView.text = "Angle2: $angleRightKnee"
+                                // Update UI
+                                countTextView.text = "Squats: $count"
+                                stageTextView.text = "Stage: $stage" // Update stage display
+                                angleTextView.text = "Angle: $angleKnee"
                             }
+
+
                         }
                     }
                 } else {
-                    Log.d("PoseLandmarks", "No landmarks detected.")
-                    runOnUiThread {
-                        overlayView.setLandmarks(mutableListOf())
-                    }
+                    runOnUiThread { overlayView.setLandmarks(mutableListOf()) }
                 }
             }
             .build()
 
         poseLandmarker = PoseLandmarker.createFromOptions(this, options)
     }
+
 
     private fun playRandomAudio(audioFiles: List<Int>) {
         if (isAudioPlaying) return
@@ -283,7 +273,7 @@ class MainActivity : AppCompatActivity() {
 
         val yuvImage = YuvImage(nv21, ImageFormat.NV21, imageProxy.width, imageProxy.height, null)
         val out = ByteArrayOutputStream()
-        yuvImage.compressToJpeg(Rect(0, 0, imageProxy.width, imageProxy.height), 100, out)
+        yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 100, out)
         val imageBytes = out.toByteArray()
         return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
     }
@@ -292,6 +282,6 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         cameraExecutor.shutdown()
         mediaPlayer?.release()
-        mediaPlayer = null
+        inactivityHandler.removeCallbacks(inactivityRunnable)
     }
 }
