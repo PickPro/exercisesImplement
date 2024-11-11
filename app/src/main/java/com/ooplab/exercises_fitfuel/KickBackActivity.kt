@@ -32,7 +32,7 @@ import kotlin.math.atan2
 
 // The MainActivity class is the entry point of the application.
 // It extends AppCompatActivity, which provides compatibility support for older Android versions.
-class MainActivity : AppCompatActivity() {
+class KickBackActivity : AppCompatActivity() {
 
     // Declares a variable for the camera executor service.
     // 'private' means it can only be accessed within this class.
@@ -52,9 +52,17 @@ class MainActivity : AppCompatActivity() {
     // TextViews to display angles
     private lateinit var angle1TextView: TextView
     private lateinit var angle2TextView: TextView
+    private lateinit var angle3TextView: TextView
+    private lateinit var angle4TextView: TextView
 
-    private var count = 0
-    private var stage: String? = null
+    // Declare lastTimePlank as a class-level variable with an initial value
+
+    // Initialize variables for tracking stage and rep count
+
+    var count = 0
+    var stage = "Down"
+    // Track if both legs were in the kickback position
+    var inKickbackPosition = false
 
     // OverlayView for drawing landmarks
     private lateinit var overlayView: OverlayView
@@ -66,7 +74,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState) // Calls the superclass implementation.
 
-        setContentView(R.layout.activity_main) // Sets the layout for the activity using XML file 'activity_main'.
+        setContentView(R.layout.activity_kick_back) // Sets the layout for the activity using XML file 'activity_main'.
 
         setupEdgeToEdge() // Calls a function to adjust the layout for devices with edge-to-edge displays.
 
@@ -81,6 +89,8 @@ class MainActivity : AppCompatActivity() {
         // Initialize TextViews for displaying angles
         angle1TextView = findViewById(R.id.angle1TextView)
         angle2TextView = findViewById(R.id.angle2TextView)
+        angle3TextView = findViewById(R.id.angle3TextView)
+        angle4TextView = findViewById(R.id.angle4TextView)
 
         // Initialize OverlayView
         overlayView = findViewById(R.id.overlayView)
@@ -129,9 +139,6 @@ class MainActivity : AppCompatActivity() {
 
                 // TODO: Implement exercise counting logic here using the landmarks.
 
-
-
-
                 // Ensure that the landmarks list is not empty before accessing the first element.
                 val allLandmarks = result.landmarks()
 
@@ -144,71 +151,83 @@ class MainActivity : AppCompatActivity() {
                         // Update the overlay view with the landmarks
                         overlayView.setLandmarks(landmarks)
 
-                    // Define points for left and right hips, knees, ankles, and shoulders
-                    val leftHip = landmarks[23]
-                    val leftKnee = landmarks[25]
-                    val leftAnkle = landmarks[27]
-                    val rightHip = landmarks[24]
-                    val rightKnee = landmarks[26]
-                    val rightAnkle = landmarks[28]
-                    val leftShoulder = landmarks[11]
-                    val rightShoulder = landmarks[12]
+                        // Define points for shoulders, hips, elbows, knees, and ankles
+                        val leftShoulder = landmarks[11]
+                        val rightShoulder = landmarks[12]
+                        val leftHip = landmarks[23]
+                        val rightHip = landmarks[24]
+                        val leftElbow = landmarks[13]
+                        val rightElbow = landmarks[14]
+                        val leftKnee = landmarks[25]
+                        val rightKnee = landmarks[26]
+                        val leftAnkle = landmarks[27]
+                        val rightAnkle = landmarks[28]
 
 
+// Check if all necessary landmarks are detected
+                        if (leftShoulder != null && rightShoulder != null && leftHip != null && rightHip != null &&
+                            leftElbow != null && rightElbow != null && leftKnee != null && rightKnee != null &&
+                            leftAnkle != null && rightAnkle != null) {
 
-                    // Check if all necessary landmarks are detected
-                    if (leftHip != null && leftKnee != null && leftAnkle != null &&
-                        rightHip != null && rightKnee != null && rightAnkle != null &&
-                        leftShoulder != null && rightShoulder != null
-                    ) {
-                        // Calculate angles
-                        val angleLeftKnee = calculateAngle(
-                            leftHip.x(), leftHip.y(),
-                            leftKnee.x(), leftKnee.y(),
-                            leftAnkle.x(), leftAnkle.y()
-                        )
+                            // Calculate angles for kickback position
+                            val angleKneeLeft = calculateAngle(
+                                leftHip.x(), leftHip.y(),
+                                leftKnee.x(), leftKnee.y(),
+                                leftAnkle.x(), leftAnkle.y()
+                            )
+                            val angleKneeRight = calculateAngle(
+                                rightHip.x(), rightHip.y(),
+                                rightKnee.x(), rightKnee.y(),
+                                rightAnkle.x(), rightAnkle.y()
+                            )
 
-                        val angleRightKnee = calculateAngle(
-                            rightHip.x(), rightHip.y(),
-                            rightKnee.x(), rightKnee.y(),
-                            rightAnkle.x(), rightAnkle.y()
-                        )
 
-                        val angleLeftHip = calculateAngle(
-                            leftShoulder.x(), leftShoulder.y(),
-                            leftHip.x(), leftHip.y(),
-                            leftKnee.x(), leftKnee.y()
-                        )
+                            val angleHipRight = calculateAngle(
+                                rightShoulder.x(), rightShoulder.y(),
+                                rightHip.x(), rightHip.y(),
+                                rightKnee.x(), rightKnee.y()
+                            )
+                            val angleHipLeft = calculateAngle(
+                                leftShoulder.x(), leftShoulder.y(),
+                                leftHip.x(), leftHip.y(),
+                                leftKnee.x(), leftKnee.y(),
+                            )
 
-                        val angleRightHip = calculateAngle(
-                            rightShoulder.x(), rightShoulder.y(),
-                            rightHip.x(), rightHip.y(),
-                            rightKnee.x(), rightKnee.y()
-                        )
+                            // Define conditions for kickback position in the range 130 to 150 degrees
+                            val kickbackConditionLeft =
+                                (angleKneeLeft > 130.0 && angleKneeLeft <191.0)
 
-                        // Update UI elements (need to run on main thread)
-                        runOnUiThread {
-                            // Display angles on screen (optional)
-                            // For example, you can draw text on the previewView's overlay
+                            val doggyPosition =  angleKneeLeft>50 && angleKneeLeft<110
+                            val kickbackConditionRight =
+                                (angleKneeRight > 210.0 && angleKneeRight <270.0)
+                            val hipCondition=(angleHipLeft>120.0 && angleHipLeft<186.0)
 
-                            // Implement counting logic
-                            if ((angleLeftHip > 175 || angleRightHip > 175) && (angleLeftKnee > 175 || angleRightKnee > 175)) {
-                                stage = "Down"
-                            }
-                            if ((angleLeftHip > 90 && angleLeftHip < 100) || (angleRightHip > 90 && angleRightHip < 100) && stage == "Down" && (angleLeftKnee > 175 || angleRightKnee > 175)) {
-                                stage = "Up"
+// Check if both kickback conditions are met and update the state
+                            if (kickbackConditionLeft && hipCondition) {
+                                // Set flag indicating that both legs are in the kickback position
+                                inKickbackPosition = true
+                            } else if (inKickbackPosition && doggyPosition ) {
+                                // Only increment count if transitioning from kickback position to normal position
                                 count++
+                                inKickbackPosition = false // Reset for the next rep cycle
                             }
 
-                            // Update TextViews
-                            countTextView.text = "Reps: $count"
-                            stageTextView.text = "Stage: $stage"
-                            angle1TextView.text = "Angle1: $angleLeftHip"
-                            angle2TextView.text = "Angle2: $angleLeftKnee"
+// Update TextViews on the main thread
+                            runOnUiThread {
+                                countTextView.text = "Reps: $count"
+                                stageTextView.text =
+                                    if (inKickbackPosition) "In Kickback Position" else "Down"
+                                angle1TextView.text = "Left Knee-Hip: $angleKneeLeft"
+                                angle2TextView.text = "Right Knee-Hip: $angleKneeRight"
+                                angle3TextView.text = "Left Hip: $angleHipLeft"
+                                angle4TextView.text = "Right Hip: $angleHipRight"
+                            }
                         }
-                    }
 
-                } }else {
+
+
+                        }
+                } else {
                     Log.d("PoseLandmarks", "No landmarks detected.")
                     // Clear the overlay if no landmarks are detected
                     runOnUiThread {
@@ -228,9 +247,7 @@ class MainActivity : AppCompatActivity() {
     private fun calculateAngle(ax: Float, ay: Float, bx: Float, by: Float, cx: Float, cy: Float): Double {
         val radians = atan2(cy - by, cx - bx) - atan2(ay - by, ax - bx)
         var angle = Math.toDegrees(abs(radians).toDouble())
-        if (angle > 180.0) {
-            angle = 360.0 - angle
-        }
+
         return angle
     }
 
