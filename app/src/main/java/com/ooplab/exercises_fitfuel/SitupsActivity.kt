@@ -49,11 +49,6 @@ class SitupsActivity : AppCompatActivity() {
     private lateinit var countTextView: TextView
     private lateinit var stageTextView: TextView
 
-    // TextViews to display angles
-    private lateinit var angle1TextView: TextView
-    private lateinit var angle2TextView: TextView
-    private lateinit var angle3TextView: TextView
-    private lateinit var angle4TextView: TextView
     // Initialize variables for tracking sit-up stage and rep count
     var isSitUpPosition = false
     var count = 0
@@ -64,8 +59,7 @@ class SitupsActivity : AppCompatActivity() {
 //    private var count = 0
 //    private var stage: String? = null
 
-    // OverlayView for drawing landmarks
-    private lateinit var overlayView: OverlayView
+
 
     // The onCreate function is called when the activity is starting.
     // 'override' indicates that this function overrides a function in the superclass.
@@ -74,7 +68,7 @@ class SitupsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState) // Calls the superclass implementation.
 
-        setContentView(R.layout.activity_main) // Sets the layout for the activity using XML file 'activity_main'.
+        setContentView(R.layout.activity_situps) // Sets the layout for the activity using XML file 'activity_main'.
 
         setupEdgeToEdge() // Calls a function to adjust the layout for devices with edge-to-edge displays.
 
@@ -86,14 +80,6 @@ class SitupsActivity : AppCompatActivity() {
         countTextView = findViewById(R.id.countTextView)
         stageTextView = findViewById(R.id.stageTextView)
 
-        // Initialize TextViews for displaying angles
-        angle1TextView = findViewById(R.id.angle1TextView)
-        angle2TextView = findViewById(R.id.angle2TextView)
-        angle3TextView = findViewById(R.id.angle3TextView)
-        angle4TextView = findViewById(R.id.angle4TextView)
-
-        // Initialize OverlayView
-        overlayView = findViewById(R.id.overlayView)
 
         requestCameraPermission() // Initiates the process to request camera permission from the user.
     }
@@ -145,11 +131,6 @@ class SitupsActivity : AppCompatActivity() {
                 if (allLandmarks.isNotEmpty() && allLandmarks[0].isNotEmpty()) {
                     // Access the first set of landmarks (for the first detected person)
                     val landmarks = allLandmarks[0]
-
-                    // Update UI elements on the main thread
-                    runOnUiThread {
-                        // Update the overlay view with the landmarks
-                        overlayView.setLandmarks(landmarks)
 
                         // Define points for shoulders, hips, and knees
                         val leftShoulder = landmarks[11]
@@ -214,31 +195,18 @@ class SitupsActivity : AppCompatActivity() {
 
                             }
 
-//                            if(count==10)
-//                            {
-//                                stage="Done"
-//
-//                            }
-
                             // Update TextViews on the main thread
                             runOnUiThread {
                                 countTextView.text = "Reps: $count"
                                 stageTextView.text = "Stage: $stage"
-                                angle1TextView.text = "Torso-Leg Angle (Left): $angleTorsoToLegsLeft"
-                                angle2TextView.text = "Torso-Leg Angle (Right): $angleTorsoToLegsRight"
-                                angle3TextView.text = "Torso-Leg Angle (Left): $angleKneeLeft"
-                                angle4TextView.text = "Torso-Leg Angle (Right): $angleKneeRight"
                             }
                         }
 
 
-                    } }else {
+                     }else {
                     Log.d("PoseLandmarks", "No landmarks detected.")
                     // Clear the overlay if no landmarks are detected
-                    runOnUiThread {
-                        overlayView.setLandmarks(mutableListOf())
 
-                    }
                 }
             }
             .build()

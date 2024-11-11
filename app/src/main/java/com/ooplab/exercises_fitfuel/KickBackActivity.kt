@@ -49,12 +49,6 @@ class KickBackActivity : AppCompatActivity() {
     private lateinit var countTextView: TextView
     private lateinit var stageTextView: TextView
 
-    // TextViews to display angles
-    private lateinit var angle1TextView: TextView
-    private lateinit var angle2TextView: TextView
-    private lateinit var angle3TextView: TextView
-    private lateinit var angle4TextView: TextView
-
     // Declare lastTimePlank as a class-level variable with an initial value
 
     // Initialize variables for tracking stage and rep count
@@ -63,9 +57,6 @@ class KickBackActivity : AppCompatActivity() {
     var stage = "Down"
     // Track if both legs were in the kickback position
     var inKickbackPosition = false
-
-    // OverlayView for drawing landmarks
-    private lateinit var overlayView: OverlayView
 
     // The onCreate function is called when the activity is starting.
     // 'override' indicates that this function overrides a function in the superclass.
@@ -85,15 +76,6 @@ class KickBackActivity : AppCompatActivity() {
         // Initialize TextViews for displaying count and stage
         countTextView = findViewById(R.id.countTextView)
         stageTextView = findViewById(R.id.stageTextView)
-
-        // Initialize TextViews for displaying angles
-        angle1TextView = findViewById(R.id.angle1TextView)
-        angle2TextView = findViewById(R.id.angle2TextView)
-        angle3TextView = findViewById(R.id.angle3TextView)
-        angle4TextView = findViewById(R.id.angle4TextView)
-
-        // Initialize OverlayView
-        overlayView = findViewById(R.id.overlayView)
 
         requestCameraPermission() // Initiates the process to request camera permission from the user.
     }
@@ -145,11 +127,6 @@ class KickBackActivity : AppCompatActivity() {
                 if (allLandmarks.isNotEmpty() && allLandmarks[0].isNotEmpty()) {
                     // Access the first set of landmarks (for the first detected person)
                     val landmarks = allLandmarks[0]
-
-                    // Update UI elements on the main thread
-                    runOnUiThread {
-                        // Update the overlay view with the landmarks
-                        overlayView.setLandmarks(landmarks)
 
                         // Define points for shoulders, hips, elbows, knees, and ankles
                         val leftShoulder = landmarks[11]
@@ -213,27 +190,19 @@ class KickBackActivity : AppCompatActivity() {
                             }
 
 // Update TextViews on the main thread
-                            runOnUiThread {
                                 countTextView.text = "Reps: $count"
                                 stageTextView.text =
                                     if (inKickbackPosition) "In Kickback Position" else "Down"
-                                angle1TextView.text = "Left Knee-Hip: $angleKneeLeft"
-                                angle2TextView.text = "Right Knee-Hip: $angleKneeRight"
-                                angle3TextView.text = "Left Hip: $angleHipLeft"
-                                angle4TextView.text = "Right Hip: $angleHipRight"
-                            }
+
                         }
 
 
 
                         }
-                } else {
+                else {
                     Log.d("PoseLandmarks", "No landmarks detected.")
                     // Clear the overlay if no landmarks are detected
-                    runOnUiThread {
-                        overlayView.setLandmarks(mutableListOf())
 
-                    }
                 }
             }
             .build()

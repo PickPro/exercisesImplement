@@ -4,7 +4,9 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.*
 import android.media.Image
+import android.media.MediaPlayer
 import android.os.Bundle
+import android.os.Handler
 import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
@@ -26,6 +28,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.abs
 import kotlin.math.atan2
+import kotlin.random.Random
 
 
 // MainActivity.kt
@@ -33,6 +36,56 @@ import kotlin.math.atan2
 // The MainActivity class is the entry point of the application.
 // It extends AppCompatActivity, which provides compatibility support for older Android versions.
 class LegRaise : AppCompatActivity() {
+
+    private lateinit var mediaPlayer: MediaPlayer
+
+    // List of sound resources for "up" and "down" stages
+    private val upSounds = listOf(
+        R.raw.up_1, R.raw.up_2, R.raw.up_3, R.raw.up_4, R.raw.up_5,
+        R.raw.up_6, R.raw.up_7, R.raw.up_8, R.raw.up_9, R.raw.up_10
+    )
+    private val downSounds = listOf(
+        R.raw.down_1, R.raw.down_2, R.raw.down_3, R.raw.down_4, R.raw.down_5,
+        R.raw.down_6, R.raw.down_7, R.raw.down_8, R.raw.down_9, R.raw.down_10
+    )
+    private val motivationalSounds = listOf(
+        R.raw.motivational1, R.raw.motivational2, R.raw.motivational3, R.raw.motivational4, R.raw.motivational5, R.raw.motivational6,R.raw.motivational7,R.raw.motivational8,R.raw.motivational9,R.raw.motivational10,
+        )
+    private val noActivitySounds = listOf(
+        R.raw.no_activity_1, R.raw.no_activity_2, R.raw.no_activity_3, R.raw.no_activity_4, R.raw.no_activity_5, R.raw.no_activity_6,R.raw.no_activity_7,R.raw.no_activity_8,R.raw.no_activity_9,R.raw.no_activity_10
+    )
+
+
+
+
+
+    // Function to play a random sound from a given list
+    private fun playRandomSound(soundList: List<Int>) {
+        if (::mediaPlayer.isInitialized && mediaPlayer.isPlaying) {
+            // If a sound is already playing, do not start a new one
+            return
+        }
+        val randomSound = soundList[Random.nextInt(soundList.size)]
+        mediaPlayer = MediaPlayer.create(this, randomSound)
+        mediaPlayer.start()
+    }
+
+    // Function to play "up" sound
+    private fun playUpSound() {
+        playRandomSound(upSounds)
+    }
+
+    // Function to play "down" sound
+    private fun playDownSound() {
+        playRandomSound(downSounds)
+    }
+
+    private fun playNoActivitySound() {
+        val combinedSounds = motivationalSounds + noActivitySounds
+        playRandomSound(combinedSounds)
+    }
+    private lateinit var handler: Handler
+    private lateinit var noActivityRunnable: Runnable
 
     // Declares a variable for the camera executor service.
     // 'private' means it can only be accessed within this class.
@@ -49,15 +102,12 @@ class LegRaise : AppCompatActivity() {
     private lateinit var countTextView: TextView
     private lateinit var stageTextView: TextView
 
-    // TextViews to display angles
-    private lateinit var angle1TextView: TextView
-    private lateinit var angle2TextView: TextView
-    private lateinit var angle3TextView: TextView
-    private lateinit var angle4TextView: TextView
+
 
     var count = 0
     var stage = "Down"
     var isAt90Degrees = false
+
 
 //    private var count = 0
 //    private var stage: String? = null
@@ -75,7 +125,10 @@ class LegRaise : AppCompatActivity() {
         setContentView(R.layout.activity_main) // Sets the layout for the activity using XML file 'activity_main'.
 
         setupEdgeToEdge() // Calls a function to adjust the layout for devices with edge-to-edge displays.
-
+        handler = Handler(mainLooper)
+        noActivityRunnable = Runnable {
+            playNoActivitySound()
+        }
         initCameraExecutor() // Initializes the camera executor and pose landmarker.
 
         previewView = findViewById(R.id.previewCam) // Finds the PreviewView from the layout to display the camera feed.
@@ -84,14 +137,6 @@ class LegRaise : AppCompatActivity() {
         countTextView = findViewById(R.id.countTextView)
         stageTextView = findViewById(R.id.stageTextView)
 
-        // Initialize TextViews for displaying angles
-        angle1TextView = findViewById(R.id.angle1TextView)
-        angle2TextView = findViewById(R.id.angle2TextView)
-        angle3TextView = findViewById(R.id.angle3TextView)
-        angle4TextView = findViewById(R.id.angle4TextView)
-
-        // Initialize OverlayView
-        overlayView = findViewById(R.id.overlayView)
 
         requestCameraPermission() // Initiates the process to request camera permission from the user.
     }
@@ -144,11 +189,6 @@ class LegRaise : AppCompatActivity() {
                     // Access the first set of landmarks (for the first detected person)
                     val landmarks = allLandmarks[0]
 
-                    // Update UI elements on the main thread
-                    runOnUiThread {
-                        // Update the overlay view with the landmarks
-                        overlayView.setLandmarks(landmarks)
-
                         // Define points for left and right hips, knees, and shoulders
                         val leftHip = landmarks[23]
                         val leftKnee = landmarks[25]
@@ -176,8 +216,7 @@ class LegRaise : AppCompatActivity() {
                             )
 
                             // Update UI elements (need to run on main thread)
-                            runOnUiThread {
-                                // Define angle conditions
+
                                 val bothLegsDownCondition = (angleLeftHip > 174 ) &&
                                         (angleRightHip > 174 )
                                 val bothLegsUpCondition = (angleLeftHip >= 85 && angleLeftHip <= 95) &&
@@ -187,29 +226,28 @@ class LegRaise : AppCompatActivity() {
                                 if (bothLegsUpCondition && stage == "Down") {
                                     // When both legs reach approximately 90 degrees, set stage to "Up"
                                     stage = "Up"
+                                    playUpSound()
                                     isAt90Degrees = true
+                                    // Reset the handler whenever activity is detected
+                                    handler.removeCallbacks(noActivityRunnable)
+                                    handler.postDelayed(noActivityRunnable, 5000) // 5 seconds delay
                                 } else if (isAt90Degrees && bothLegsDownCondition) {
                                     // When both legs go back to approximately 180 degrees from 90 degrees, increment rep count
                                     count++
                                     stage = "Down"       // Reset stage to "Down" after counting
+                                    playDownSound()
                                     isAt90Degrees = false // Reset the 90-degree tracker
                                 }
 
                                 // Update TextViews
                                 countTextView.text = "Reps: $count"
                                 stageTextView.text = "Stage: $stage"
-                                angle1TextView.text = "Angle Left Hip: $angleLeftHip"
-                                angle2TextView.text = "Angle Right Hip: $angleRightHip"
-                            }
                         }
 
-                    } }else {
+                     }else {
                     Log.d("PoseLandmarks", "No landmarks detected.")
                     // Clear the overlay if no landmarks are detected
-                    runOnUiThread {
-                        overlayView.setLandmarks(mutableListOf())
 
-                    }
                 }
             }
             .build()

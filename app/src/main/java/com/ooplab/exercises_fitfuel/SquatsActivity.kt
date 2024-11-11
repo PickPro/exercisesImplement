@@ -79,12 +79,7 @@ class SquatsActivity : AppCompatActivity() {
         countTextView = findViewById(R.id.countTextView)
         stageTextView = findViewById(R.id.stageTextView)
 
-        // Initialize TextViews for displaying angles
-        angle1TextView = findViewById(R.id.angle1TextView)
-        angle2TextView = findViewById(R.id.angle2TextView)
 
-        // Initialize OverlayView
-        overlayView = findViewById(R.id.overlayView)
 
         requestCameraPermission() // Initiates the process to request camera permission from the user.
     }
@@ -137,10 +132,6 @@ class SquatsActivity : AppCompatActivity() {
                     // Access the first set of landmarks (for the first detected person)
                     val landmarks = allLandmarks[0]
 
-                    // Update UI elements on the main thread
-                    runOnUiThread {
-                        // Update the overlay view with the landmarks
-                        overlayView.setLandmarks(landmarks)
 
 
 
@@ -169,9 +160,6 @@ class SquatsActivity : AppCompatActivity() {
 
 
 
-                            // Define squat position condition (angles below 160.0 degrees means "Down")
-                            val SquatDown = (angleLeftKnee > 160.0) || (angleRightKnee > 160.0)
-
                             // Update stage and rep count
                             if (((angleLeftKnee > 160.0) && (angleRightKnee > 160.0))) {
                                 if (stage=="Down")
@@ -191,19 +179,15 @@ class SquatsActivity : AppCompatActivity() {
 
 
 
-                            // Update UI elements on the main thread
-                            runOnUiThread {
                                 // Display rep count and angles for debugging
                                 stageTextView.text = "Stage: $stage"
                                 countTextView.text = "Reps: $count"
-                                angle1TextView.text = "Angle Left Knee: $angleLeftKnee"
-                                angle2TextView.text = "Angle Right Knee: $angleRightKnee"
-                            }
+
                         }
 
 
 
-                    }}else {
+                    }else {
                     Log.d("PoseLandmarks", "No landmarks detected.")
                     // Clear the overlay if no landmarks are detected
                     runOnUiThread {

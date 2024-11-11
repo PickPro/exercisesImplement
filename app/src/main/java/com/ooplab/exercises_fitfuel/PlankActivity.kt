@@ -47,16 +47,12 @@ class PlankActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        setContentView(R.layout.activity_plank)
         setupEdgeToEdge()
         initCameraExecutor()
         previewView = findViewById(R.id.previewCam)
         countTextView = findViewById(R.id.countTextView)
         stageTextView = findViewById(R.id.stageTextView)
-        angle1TextView = findViewById(R.id.angle1TextView)
-        angle2TextView = findViewById(R.id.angle2TextView)
-        angle3TextView = findViewById(R.id.angle3TextView)
-        angle4TextView = findViewById(R.id.angle4TextView)
         overlayView = findViewById(R.id.overlayView)
         requestCameraPermission()
     }
@@ -86,8 +82,6 @@ class PlankActivity : AppCompatActivity() {
                 val allLandmarks = result.landmarks()
                 if (allLandmarks.isNotEmpty() && allLandmarks[0].isNotEmpty()) {
                     val landmarks = allLandmarks[0]
-                    runOnUiThread {
-                        overlayView.setLandmarks(landmarks)
                         val leftShoulder = landmarks[11]
                         val rightShoulder = landmarks[12]
                         val leftHip = landmarks[23]
@@ -142,9 +136,7 @@ class PlankActivity : AppCompatActivity() {
                                     timer = object : CountDownTimer(Long.MAX_VALUE, 1000) {
                                         override fun onTick(millisUntilFinished: Long) {
                                             secondsElapsed++
-                                            runOnUiThread {
-                                                countTextView.text = "Time: $secondsElapsed secs"
-                                            }
+
                                             if (secondsElapsed >= 5) {
                                                 timer?.cancel()
                                                 runOnUiThread {
@@ -165,7 +157,7 @@ class PlankActivity : AppCompatActivity() {
 
 
                                 }
-                            } else {
+                             else {
                                 if (Pose == "Plank position") {
                                     Pose = "Not Plank Pose"
                                     timer?.cancel()
@@ -173,18 +165,16 @@ class PlankActivity : AppCompatActivity() {
                                 }
                             }
 
-                            runOnUiThread {
+
                                 stageTextView.text = "Position: $Pose"
                                 angle1TextView.text = "Angle Left Hip: $angleLeftHip"
                                 angle2TextView.text = "Angle Right Hip: $angleRightHip"
                                 angle3TextView.text = "Angle Left Elbow to Shoulder: $angleElbowLeft"
                                 angle4TextView.text = "Angle Right Elbow to Shoulder: $angleElbowRight"
-                            }
+
                         } else {
                             Log.d("PoseLandmarks", "No landmarks detected.")
-                            runOnUiThread {
-                                overlayView.setLandmarks(mutableListOf())
-                            }
+
                         }
                     }
                 }
