@@ -165,13 +165,17 @@ class PlankActivity : AppCompatActivity() {
                                 }
                             }
 
+                                runOnUiThread() {
 
-                                stageTextView.text = "Position: $Pose"
-                                angle1TextView.text = "Angle Left Hip: $angleLeftHip"
-                                angle2TextView.text = "Angle Right Hip: $angleRightHip"
-                                angle3TextView.text = "Angle Left Elbow to Shoulder: $angleElbowLeft"
-                                angle4TextView.text = "Angle Right Elbow to Shoulder: $angleElbowRight"
 
+                                    stageTextView.text = "Position: $Pose"
+                                    angle1TextView.text = "Angle Left Hip: $angleLeftHip"
+                                    angle2TextView.text = "Angle Right Hip: $angleRightHip"
+                                    angle3TextView.text =
+                                        "Angle Left Elbow to Shoulder: $angleElbowLeft"
+                                    angle4TextView.text =
+                                        "Angle Right Elbow to Shoulder: $angleElbowRight"
+                                }
                         } else {
                             Log.d("PoseLandmarks", "No landmarks detected.")
 

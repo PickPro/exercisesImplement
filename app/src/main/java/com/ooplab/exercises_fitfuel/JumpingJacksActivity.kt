@@ -4,7 +4,9 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.*
 import android.media.Image
+import android.media.MediaPlayer
 import android.os.Bundle
+import android.os.Handler
 import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
@@ -26,6 +28,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.abs
 import kotlin.math.atan2
+import kotlin.random.Random
 
 
 // MainActivity.kt
@@ -33,7 +36,52 @@ import kotlin.math.atan2
 // The MainActivity class is the entry point of the application.
 // It extends AppCompatActivity, which provides compatibility support for older Android versions.
 class JumpingJacksActivity : AppCompatActivity() {
+    private lateinit var mediaPlayer: MediaPlayer
 
+    // List of sound resources for "up" and "down" stages
+    private val upSounds = listOf(
+        R.raw.up_1, R.raw.up_2, R.raw.up_3, R.raw.up_4, R.raw.up_5,
+        R.raw.up_6, R.raw.up_7, R.raw.up_8, R.raw.up_10
+    )
+    private val downSounds = listOf(
+        R.raw.down_1, R.raw.down_2, R.raw.down_3, R.raw.down_4, R.raw.down_5,
+        R.raw.down_6, R.raw.down_7, R.raw.down_8, R.raw.down_9, R.raw.down_10
+    )
+    private val motivationalSounds = listOf(
+        R.raw.motivational1, R.raw.motivational2, R.raw.motivational3, R.raw.motivational4, R.raw.motivational5, R.raw.motivational6,R.raw.motivational7,R.raw.motivational8,R.raw.motivational9,R.raw.motivational10,
+    )
+    private val noActivitySounds = listOf(
+        R.raw.no_activity_1, R.raw.no_activity_2, R.raw.no_activity_3, R.raw.no_activity_4, R.raw.no_activity_5, R.raw.no_activity_6,R.raw.no_activity_7,R.raw.no_activity_8,R.raw.no_activity_9,R.raw.no_activity_10
+    )
+
+    // Function to play a random sound from a given list
+    private fun playRandomSound(soundList: List<Int>) {
+        if (::mediaPlayer.isInitialized && mediaPlayer.isPlaying) {
+            // If a sound is already playing, do not start a new one
+            return
+        }
+        val randomSound = soundList[Random.nextInt(soundList.size)]
+        mediaPlayer = MediaPlayer.create(this, randomSound)
+        mediaPlayer.start()
+    }
+
+    // Function to play "up" sound
+    private fun playUpSound() {
+        playRandomSound(upSounds)
+    }
+
+    // Function to play "down" sound
+    private fun playDownSound() {
+        val combinedSounds = motivationalSounds + downSounds
+        playRandomSound(combinedSounds)
+    }
+
+    private fun playNoActivitySound() {
+        playRandomSound(noActivitySounds)
+    }
+    private lateinit var handler: Handler
+    private lateinit var noActivityRunnable: Runnable
+    private var lastConditionExecutionTime: Long = 0
     // Declares a variable for the camera executor service.
     // 'private' means it can only be accessed within this class.
     // 'lateinit var' tells the compiler that the variable will be initialized before use.
@@ -64,6 +112,18 @@ class JumpingJacksActivity : AppCompatActivity() {
         setContentView(R.layout.activity_jumping_jacks) // Sets the layout for the activity using XML file 'activity_main'.
 
         setupEdgeToEdge() // Calls a function to adjust the layout for devices with edge-to-edge displays.
+        handler = Handler(mainLooper)
+        noActivityRunnable = Runnable {
+            if (System.currentTimeMillis() - lastConditionExecutionTime >= 5000) {
+                playNoActivitySound()
+            }
+            handler.postDelayed(noActivityRunnable, 5000)
+        }
+
+
+        // Post the first delayed Runnable
+        handler.postDelayed(noActivityRunnable, 5000)
+
 
         initCameraExecutor() // Initializes the camera executor and pose landmarker.
 
@@ -160,7 +220,7 @@ class JumpingJacksActivity : AppCompatActivity() {
                                 leftHip.x(), leftHip.y(),
                                 leftKnee.x(), leftKnee.y(),
 
-                            )
+                                )
 
                             val angleRightLeg = calculateAngle(
                                 leftHip.x(), leftHip.y(),
@@ -168,26 +228,49 @@ class JumpingJacksActivity : AppCompatActivity() {
                                 rightKnee.x(), rightKnee.y(),
                             )
 
-                                // Define angle conditions
-                                val armsUpCondition = (angleLeftShoulder > 145 && angleLeftShoulder < 170) ||
+
+                            // Define angle conditions
+                            val armsUpCondition =
+                                (angleLeftShoulder > 145 && angleLeftShoulder < 170) ||
                                         (angleRightShoulder > 145 && angleRightShoulder < 170)
-                                val legsOutCondition = (angleLeftLeg > 95) ||
-                                        (angleRightLeg > 95)
+                            val legsOutCondition = (angleLeftLeg > 95) ||
+                                    (angleRightLeg > 95)
 
-                                val armsDownCondition = (angleLeftShoulder > 10 && angleLeftShoulder < 40) ||
+                            val armsDownCondition =
+                                (angleLeftShoulder > 10 && angleLeftShoulder < 40) ||
                                         (angleRightShoulder > 10 && angleRightShoulder < 40)
-                                val legsInCondition = (angleLeftLeg > 80 && angleLeftLeg < 95) ||
-                                        (angleRightLeg > 80 && angleRightLeg < 95)
+                            val legsInCondition = (angleLeftLeg > 80 && angleLeftLeg < 95) ||
+                                    (angleRightLeg > 80 && angleRightLeg < 95)
 
-                                // Check the stage and conditions for rep counting
-                                if (armsUpCondition && legsOutCondition) {
-                                    // When both arms and legs reach the "Up" position, set stage to "Up"
-                                    stage = "Up"
-                                } else if (stage == "Up" && armsDownCondition && legsInCondition) {
-                                    // When both arms and legs go back to the "Down" position from "Up", increment rep count
-                                    count++
-                                    stage = "Down"       // Reset stage to "Down" after counting
-                                }
+                            runOnUiThread() {
+
+                            // Check the stage and conditions for rep counting
+                            if (armsUpCondition && legsOutCondition) {
+                                // When both arms and legs reach the "Up" position, set stage to "Up"
+                                stage = "Up"
+                                playUpSound()
+
+                                // Reset the handler whenever activity is detected
+                                lastConditionExecutionTime = System.currentTimeMillis()
+                                handler.removeCallbacks(noActivityRunnable)
+                                handler.postDelayed(noActivityRunnable, 5000) // 5 seconds delay
+
+                            } else if (stage == "Up" && armsDownCondition && legsInCondition) {
+                                // When both arms and legs go back to the "Down" position from "Up", increment rep count
+                                count++
+                                stage = "Down"       // Reset stage to "Down" after counting
+                                playDownSound()
+
+                                lastConditionExecutionTime = System.currentTimeMillis()
+
+                                // Reset timer
+                                handler.removeCallbacks(noActivityRunnable)
+                                handler.postDelayed(noActivityRunnable, 5000)
+                            }
+                            // Update TextViews
+                            countTextView.text = "Reps: $count"
+                            stageTextView.text = "Stage: $stage"
+                        }
 
 
                         }

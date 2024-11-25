@@ -170,6 +170,8 @@ class KickBackActivity : AppCompatActivity() {
                                 leftKnee.x(), leftKnee.y(),
                             )
 
+
+
                             // Define conditions for kickback position in the range 130 to 150 degrees
                             val kickbackConditionLeft =
                                 (angleKneeLeft > 130.0 && angleKneeLeft <191.0)
@@ -190,11 +192,13 @@ class KickBackActivity : AppCompatActivity() {
                             }
 
 // Update TextViews on the main thread
+                            runOnUiThread() {
                                 countTextView.text = "Reps: $count"
                                 stageTextView.text =
                                     if (inKickbackPosition) "In Kickback Position" else "Down"
 
                         }
+                            }
 
 
 

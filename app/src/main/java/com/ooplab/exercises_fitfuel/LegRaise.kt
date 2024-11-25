@@ -1,5 +1,4 @@
 package com.ooplab.exercises_fitfuel
-
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.*
@@ -42,7 +41,7 @@ class LegRaise : AppCompatActivity() {
     // List of sound resources for "up" and "down" stages
     private val upSounds = listOf(
         R.raw.up_1, R.raw.up_2, R.raw.up_3, R.raw.up_4, R.raw.up_5,
-        R.raw.up_6, R.raw.up_7, R.raw.up_8, R.raw.up_9, R.raw.up_10
+        R.raw.up_6, R.raw.up_7, R.raw.up_8, R.raw.up_10
     )
     private val downSounds = listOf(
         R.raw.down_1, R.raw.down_2, R.raw.down_3, R.raw.down_4, R.raw.down_5,
@@ -77,15 +76,16 @@ class LegRaise : AppCompatActivity() {
 
     // Function to play "down" sound
     private fun playDownSound() {
-        playRandomSound(downSounds)
+        val combinedSounds = motivationalSounds + downSounds
+        playRandomSound(combinedSounds)
     }
 
     private fun playNoActivitySound() {
-        val combinedSounds = motivationalSounds + noActivitySounds
-        playRandomSound(combinedSounds)
+        playRandomSound(noActivitySounds)
     }
     private lateinit var handler: Handler
     private lateinit var noActivityRunnable: Runnable
+    private var lastConditionExecutionTime: Long = 0
 
     // Declares a variable for the camera executor service.
     // 'private' means it can only be accessed within this class.
@@ -113,7 +113,6 @@ class LegRaise : AppCompatActivity() {
 //    private var stage: String? = null
 
     // OverlayView for drawing landmarks
-    private lateinit var overlayView: OverlayView
 
     // The onCreate function is called when the activity is starting.
     // 'override' indicates that this function overrides a function in the superclass.
@@ -127,8 +126,15 @@ class LegRaise : AppCompatActivity() {
         setupEdgeToEdge() // Calls a function to adjust the layout for devices with edge-to-edge displays.
         handler = Handler(mainLooper)
         noActivityRunnable = Runnable {
-            playNoActivitySound()
+            if (System.currentTimeMillis() - lastConditionExecutionTime >= 5000) {
+                playNoActivitySound()
+            }
+            handler.postDelayed(noActivityRunnable, 5000)
         }
+
+        // Post the first delayed Runnable
+        handler.postDelayed(noActivityRunnable, 5000)
+
         initCameraExecutor() // Initializes the camera executor and pose landmarker.
 
         previewView = findViewById(R.id.previewCam) // Finds the PreviewView from the layout to display the camera feed.
@@ -216,11 +222,12 @@ class LegRaise : AppCompatActivity() {
                             )
 
                             // Update UI elements (need to run on main thread)
-
-                                val bothLegsDownCondition = (angleLeftHip > 174 ) &&
-                                        (angleRightHip > 174 )
-                                val bothLegsUpCondition = (angleLeftHip >= 85 && angleLeftHip <= 95) &&
-                                        (angleRightHip >= 85 && angleRightHip <= 95)
+                            runOnUiThread {
+                                val bothLegsDownCondition = (angleLeftHip > 174) &&
+                                        (angleRightHip > 174)
+                                val bothLegsUpCondition =
+                                    (angleLeftHip >= 85 && angleLeftHip <= 95) &&
+                                            (angleRightHip >= 85 && angleRightHip <= 95)
 
                                 // Check the stage and conditions for rep counting
                                 if (bothLegsUpCondition && stage == "Down") {
@@ -229,6 +236,7 @@ class LegRaise : AppCompatActivity() {
                                     playUpSound()
                                     isAt90Degrees = true
                                     // Reset the handler whenever activity is detected
+                                    lastConditionExecutionTime = System.currentTimeMillis()
                                     handler.removeCallbacks(noActivityRunnable)
                                     handler.postDelayed(noActivityRunnable, 5000) // 5 seconds delay
                                 } else if (isAt90Degrees && bothLegsDownCondition) {
@@ -237,11 +245,18 @@ class LegRaise : AppCompatActivity() {
                                     stage = "Down"       // Reset stage to "Down" after counting
                                     playDownSound()
                                     isAt90Degrees = false // Reset the 90-degree tracker
+
+                                    lastConditionExecutionTime = System.currentTimeMillis()
+
+                                    // Reset timer
+                                    handler.removeCallbacks(noActivityRunnable)
+                                    handler.postDelayed(noActivityRunnable, 5000)
                                 }
 
                                 // Update TextViews
                                 countTextView.text = "Reps: $count"
                                 stageTextView.text = "Stage: $stage"
+                            }
                         }
 
                      }else {
@@ -430,6 +445,7 @@ class LegRaise : AppCompatActivity() {
     // Called when the activity is destroyed to clean up resources.
     override fun onDestroy() {
         super.onDestroy()
+        handler.removeCallbacks(noActivityRunnable)
         cameraExecutor.shutdown() // Shuts down the executor service.
         poseLandmarker.close() // Closes the pose landmarker to release resources.
     }

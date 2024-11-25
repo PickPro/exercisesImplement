@@ -178,10 +178,11 @@ class SquatsActivity : AppCompatActivity() {
 
 
 
-
+                            runOnUiThread() {
                                 // Display rep count and angles for debugging
                                 stageTextView.text = "Stage: $stage"
                                 countTextView.text = "Reps: $count"
+                            }
 
                         }
 
