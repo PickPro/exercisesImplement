@@ -570,6 +570,7 @@ class MainActivity : AppCompatActivity() {
 
                         if (isPlankPose) {
                             if (Pose != "Plank position") {
+                                soundManager.playNotPlankSound()
                                 Pose = "Plank position"
                                 runOnUiThread {
                                     timer?.cancel()
@@ -613,10 +614,7 @@ class MainActivity : AppCompatActivity() {
                             }
                         } else {
 
-                            lastConditionExecutionTime = System.currentTimeMillis()
-                            scope.launch {
-                                delayedNoActivitySound()
-                            }
+                            soundManager.playNotPlankSound()
                         }
                     }
                 }

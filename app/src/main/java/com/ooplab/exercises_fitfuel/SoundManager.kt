@@ -20,6 +20,13 @@ class SoundManager(var activity: Activity) {
     private val noActivitySounds = listOf(
         R.raw.no_activity_1, R.raw.no_activity_2, R.raw.no_activity_3, R.raw.no_activity_4, R.raw.no_activity_5, R.raw.no_activity_6,R.raw.no_activity_7,R.raw.no_activity_8,R.raw.no_activity_9,R.raw.no_activity_10
     )
+    //plank sounds
+    private val plankSounds = listOf(
+        R.raw.plank_1, R.raw.plank_2, R.raw.plank_3, R.raw.plank_4, R.raw.plank_5, R.raw.plank_6,R.raw.plank_7,R.raw.plank_8,R.raw.plank_9,R.raw.plank_10, R.raw.plank_11, R.raw.plank_12, R.raw.plank_13, R.raw.plank_14, R.raw.plank_15
+    )
+    private val notPlankSounds = listOf(
+        R.raw.not_plank_1, R.raw.not_plank_2, R.raw.not_plank_3, R.raw.not_plank_4, R.raw.not_plank_5, R.raw.not_plank_6,R.raw.not_plank_7,R.raw.not_plank_8,R.raw.not_plank_9,R.raw.not_plank_10, R.raw.not_plank_11, R.raw.not_plank_12, R.raw.not_plank_13, R.raw.not_plank_14, R.raw.not_plank_15
+    )
 
     private lateinit var mediaPlayer: MediaPlayer
 
@@ -48,6 +55,11 @@ class SoundManager(var activity: Activity) {
     fun playNoActivitySound() {
         playRandomSound(noActivitySounds)
     }
-
+    fun playPlankSound() {
+        playRandomSound(plankSounds)
+    }
+    fun playNotPlankSound() {
+        playRandomSound(notPlankSounds)
+    }
 
 }
