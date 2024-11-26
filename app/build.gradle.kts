@@ -7,6 +7,10 @@ android {
     namespace = "com.ooplab.exercises_fitfuel"
     compileSdk = 34
 
+    buildFeatures {
+        viewBinding = true
+    }
+
     defaultConfig {
         applicationId = "com.ooplab.exercises_fitfuel"
         minSdk = 29
@@ -52,6 +56,8 @@ dependencies {
     implementation("androidx.camera:camera-camera2:1.3.4")
     implementation("com.google.mediapipe:tasks-vision:0.20230731")
     implementation("androidx.camera:camera-core:1.3.4")
+    implementation ("com.intuit.sdp:sdp-android:1.1.0")
+
 
 
 }

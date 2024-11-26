@@ -46,7 +46,7 @@
 
         </activity>
         <activity
-            android:name=".LegRaise"
+            android:name=".MainActivity"
             android:exported="true" />
     </application>
 
