@@ -80,9 +80,7 @@ class MainActivity : AppCompatActivity() {
         if (System.currentTimeMillis() - lastConditionExecutionTime >= 5000) {
             soundManager.playNoActivitySound()
         }
-//        scope.launch {
-//            delayedNoActivitySound()
-//        }
+
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -91,9 +89,6 @@ class MainActivity : AppCompatActivity() {
         binding.exerciseName.text = exerciseName
 
         enableEdgeToEdge() // Calls a function to adjust the layout for devices with edge-to-edge displays.
-//        scope.launch {
-//            delayedNoActivitySound()
-//        }
 
         initCameraExecutor() // Initializes the camera executor and pose landmarker.
 
@@ -115,7 +110,7 @@ class MainActivity : AppCompatActivity() {
 
         initializePoseLandmarker() // Calls a function to initialize the pose landmarker.
 
-         // Calls a function to initialize the pose landmarker.
+        // Calls a function to initialize the pose landmarker.
     }
 
     // Sets up the pose landmarker with the necessary options.
@@ -152,7 +147,7 @@ class MainActivity : AppCompatActivity() {
 
 
 
-                     }else {
+                }else {
                     Log.d("PoseLandmarks", "No landmarks detected.")
                     // Clear the overlay if no landmarks are detected
 
@@ -369,7 +364,7 @@ class MainActivity : AppCompatActivity() {
         val leftKnee = landmarks[25]
         val rightKnee = landmarks[26]
 
-    // Check if all necessary landmarks are detected
+        // Check if all necessary landmarks are detected
         if (leftHip != null && rightHip != null &&
             leftShoulder != null && rightShoulder != null &&
             leftAnkle != null && rightAnkle != null &&
@@ -512,7 +507,7 @@ class MainActivity : AppCompatActivity() {
 
             if (isPlankPose) {
                 if (Pose != "Plank position") {
-                    soundManager.playNotPlankSound()
+                    soundManager.playPlankSound()
                     Pose = "Plank position"
                     runOnUiThread {
                         timer?.cancel()
@@ -832,7 +827,7 @@ class MainActivity : AppCompatActivity() {
     // Called when the activity is destroyed to clean up resources.
     override fun onDestroy() {
         super.onDestroy()
-       scope.cancel()
+        scope.cancel()
         cameraExecutor.shutdown() // Shuts down the executor service.
         poseLandmarker.close() // Closes the pose landmarker to release resources.
     }
@@ -891,4 +886,3 @@ class MainActivity : AppCompatActivity() {
 
 
 }
-

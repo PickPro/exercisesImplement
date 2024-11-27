@@ -55,6 +55,7 @@ class SoundManager(var activity: Activity) {
     fun playNoActivitySound() {
         playRandomSound(noActivitySounds)
     }
+
     fun playPlankSound() {
         playRandomSound(plankSounds)
     }
