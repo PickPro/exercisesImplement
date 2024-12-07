@@ -132,12 +132,12 @@ class ExerciseActivity : AppCompatActivity() {
                 if (allLandmarks.isNotEmpty() && allLandmarks[0].isNotEmpty()) {
 
                     when(exerciseName){
-                        "legRaise" -> exerciseLegRaise(allLandmarks[0])
-                        "kickBack" -> exerciseKickBack(allLandmarks[0])
-                        "jumpingJack" -> exerciseJumpingJack(allLandmarks[0])
-                        "plank" -> exercisePlank(allLandmarks[0])
-                        "situps" -> exerciseSitups(allLandmarks[0])
-                        "squats" -> exerciseSquats(allLandmarks[0])
+                        "Leg Raise" -> exerciseLegRaise(allLandmarks[0])
+                        "Kick Back" -> exerciseKickBack(allLandmarks[0])
+                        "Jumping Jack" -> exerciseJumpingJack(allLandmarks[0])
+                        "Plank" -> exercisePlank(allLandmarks[0])
+                        "Situps" -> exerciseSitups(allLandmarks[0])
+                        "Squats" -> exerciseSquats(allLandmarks[0])
                     }
 
 

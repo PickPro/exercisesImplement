@@ -24,7 +24,11 @@ class ExerciseListActivity : AppCompatActivity() {
 
         var allCategories = listOf(
             ExerciseModel("Leg Raise" , "Cardio"),
-            ExerciseModel("squats" , "Cardio"),
+            ExerciseModel("Plank" , "Cardio"),
+            ExerciseModel("Jumping Jacks" , "Cardio"),
+            ExerciseModel("Kick Back" , "Cardio"),
+            ExerciseModel("Situps" , "Cardio"),
+            ExerciseModel("Squats" , "Cardio"),
 
             ExerciseModel("PushUp" , "Strength"),
             ExerciseModel("Stand" , "Normal"),
