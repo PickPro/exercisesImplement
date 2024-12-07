@@ -21,8 +21,8 @@
         android:theme="@style/Theme.Exercises_FitFuel"
         tools:targetApi="31">
         <activity
-            android:name=".SquatsActivity"
-            android:exported="true" >
+            android:name=".ExerciseActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -30,23 +30,28 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".SitupsActivity"
-            android:exported="true" />
-        <activity
-            android:name=".JumpingJacksActivity"
-            android:exported="true" />
-        <activity
-            android:name=".KickBackActivity"
+            android:name=".ExerciseListActivity"
             android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
 
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
         </activity>
         <activity
-            android:name=".PlankActivity"
-            android:exported="true">
-
-        </activity>
+            android:name=".SubTypeActivity"
+            android:exported="false" />
         <activity
             android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".CardioExercise"
             android:exported="true" />
     </application>
 
