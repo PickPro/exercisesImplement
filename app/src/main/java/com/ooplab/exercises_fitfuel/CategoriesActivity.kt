@@ -12,8 +12,7 @@ import com.ooplab.exercises_fitfuel.Utils.viewBinding
 import com.ooplab.exercises_fitfuel.databinding.ActivityCategoriesBinding
 import com.ooplab.exercises_fitfuel.databinding.ActivityExerciseBinding
 import com.ooplab.exercises_fitfuel.databinding.SampleRowCategoryBinding
-import com.ooplab.exercises_fitfuel.model.Exercise
-import com.ooplab.exercises_fitfuel.model.SubType
+
 
 data class CategoryModel(var name: String="" , var subtype: Boolean = false , )
 

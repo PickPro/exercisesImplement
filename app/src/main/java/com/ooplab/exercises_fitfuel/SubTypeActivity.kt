@@ -18,7 +18,7 @@ class SubTypeActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        Toast.makeText(this, "Youga", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Yoga", Toast.LENGTH_SHORT).show()
 
         var allCategories = listOf(
             "Under weight",
