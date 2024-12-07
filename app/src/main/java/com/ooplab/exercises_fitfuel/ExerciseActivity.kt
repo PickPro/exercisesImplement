@@ -134,7 +134,7 @@ class ExerciseActivity : AppCompatActivity() {
                     when(exerciseName){
                         "Leg Raise" -> exerciseLegRaise(allLandmarks[0])
                         "Kick Back" -> exerciseKickBack(allLandmarks[0])
-                        "Jumping Jack" -> exerciseJumpingJack(allLandmarks[0])
+                        "Jumping Jacks" -> exerciseJumpingJack(allLandmarks[0])
                         "Plank" -> exercisePlank(allLandmarks[0])
                         "Situps" -> exerciseSitups(allLandmarks[0])
                         "Squats" -> exerciseSquats(allLandmarks[0])
