@@ -10,7 +10,6 @@ import com.ooplab.exercises_fitfuel.model.ExerciseType
 
 class MainActivity : AppCompatActivity() {
     private lateinit var recyclerViewTypes: RecyclerView
-    private lateinit var adapter: ExerciseTypeAdapter
     private lateinit var exerciseTypes: List<ExerciseType>
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -19,8 +18,6 @@ class MainActivity : AppCompatActivity() {
         recyclerViewTypes = findViewById(R.id.recycler_view_types)
         recyclerViewTypes.layoutManager = LinearLayoutManager(this)
         exerciseTypes = getExerciseTypes()
-        adapter = ExerciseTypeAdapter(this, exerciseTypes)
-        recyclerViewTypes.adapter = adapter
     }
 
     private fun getExerciseTypes(): List<ExerciseType> {

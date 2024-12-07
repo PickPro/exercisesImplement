@@ -86,7 +86,7 @@ class CardioExercise : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState) // Calls the superclass implementation.
         soundManager = SoundManager(this)
-        binding.exerciseName.text = exerciseName
+//        binding.exerciseName.text = exerciseName
 
         enableEdgeToEdge() // Calls a function to adjust the layout for devices with edge-to-edge displays.
 

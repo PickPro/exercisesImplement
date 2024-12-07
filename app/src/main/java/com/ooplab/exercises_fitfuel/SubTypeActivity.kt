@@ -1,33 +1,41 @@
 package com.ooplab.exercises_fitfuel
 
+
+
+import android.R.attr.category
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
+import com.ooplab.exercises_fitfuel.Utils.setData
+import com.ooplab.exercises_fitfuel.Utils.viewBinding
+import com.ooplab.exercises_fitfuel.databinding.ActivitySubTypeBinding
+import com.ooplab.exercises_fitfuel.databinding.SampleRowCategoryBinding
 
 class SubTypeActivity : AppCompatActivity() {
-    private lateinit var recyclerViewSubTypes: RecyclerView
-    private lateinit var adapter: SubTypeAdapter
-    private lateinit var subTypes: List<SubType>
-    private lateinit var parentTypeId: String
-
+    val binding by viewBinding(ActivitySubTypeBinding::inflate)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_subtype)
-        recyclerViewSubTypes = findViewById(R.id.recycler_view_subtypes)
-        recyclerViewSubTypes.layoutManager = LinearLayoutManager(this)
-        parentTypeId = intent.getStringExtra("typeId") ?: ""
-        subTypes = getSubTypes(parentTypeId)
-        adapter = SubTypeAdapter(this, subTypes)
-        recyclerViewSubTypes.adapter = adapter
-    }
+        enableEdgeToEdge()
+        Toast.makeText(this, "Youga", Toast.LENGTH_SHORT).show()
 
-    private fun getSubTypes(typeId: String): List<SubType> {
-        return listOf(
-            SubType("1", "Underweight", typeId),
-            SubType("2", "Normal", typeId),
-            SubType("3", "Overweight", typeId)
+        var allCategories = listOf(
+            "Under weight",
+            "Normal",
+            "Over Weight",
         )
+
+        binding.recyclerview.setData(allCategories, SampleRowCategoryBinding::inflate) { b, item, position ->
+            b.name.text = item
+
+            lateinit var i: Intent
+            b.main.setOnClickListener{
+                i=Intent(this , ExerciseListActivity::class.java)
+                i.putExtra("category",item)
+                startActivity(i)
+            }
+        }
+
     }
 }

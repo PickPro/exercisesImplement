@@ -1,33 +1,42 @@
 package com.ooplab.exercises_fitfuel
 
+
+
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
+import com.ooplab.exercises_fitfuel.Utils.setData
+import com.ooplab.exercises_fitfuel.Utils.viewBinding
+import com.ooplab.exercises_fitfuel.databinding.ActivityExerciseListBinding
+import com.ooplab.exercises_fitfuel.databinding.ActivitySubTypeBinding
+import com.ooplab.exercises_fitfuel.databinding.SampleRowCategoryBinding
 
+data class ExerciseModel(var name: String = "" , var type: String = "")
 class ExerciseListActivity : AppCompatActivity() {
-    private lateinit var recyclerViewExercises: RecyclerView
-    private lateinit var adapter: ExerciseAdapter
-    private lateinit var exercises: List<Exercise>
-    private lateinit var parentId: String
-
+    val binding by viewBinding(ActivityExerciseListBinding::inflate)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_exercise_list)
-        recyclerViewExercises = findViewById(R.id.recycler_view_exercises)
-        recyclerViewExercises.layoutManager = LinearLayoutManager(this)
-        parentId = intent.getStringExtra("parentId") ?: ""
-        exercises = getExercises(parentId)
-        adapter = ExerciseAdapter(this, exercises)
-        recyclerViewExercises.adapter = adapter
-    }
+        enableEdgeToEdge()
+        var category = intent.getStringExtra("category")!!
+        Toast.makeText(this, category, Toast.LENGTH_SHORT).show()
 
-    private fun getExercises(parentId: String): List<Exercise> {
-        return listOf(
-            Exercise("1", "Exercise 1", parentId),
-            Exercise("2", "Exercise 2", parentId),
-            Exercise("3", "Exercise 3", parentId)
+        var allCategories = listOf(
+            ExerciseModel("Leg Raise" , "Cardio"),
+            ExerciseModel("Squats" , "Cardio"),
+            ExerciseModel("PushUp" , "Strength"),
+            ExerciseModel("Stand" , "Normal"),
         )
+
+        binding.recyclerview.setData(allCategories.filter { it.type== category}, SampleRowCategoryBinding::inflate) { b, item, position ->
+            b.name.text = item.name
+            lateinit var i: Intent
+            b.main.setOnClickListener{
+               i =  Intent(this , ExerciseActivity::class.java)
+                i.putExtra("exerciseName",item.name)
+                startActivity(i)
+            }
+        }
     }
 }

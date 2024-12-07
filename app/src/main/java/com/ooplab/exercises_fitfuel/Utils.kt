@@ -8,13 +8,71 @@ import android.graphics.Rect
 import android.graphics.YuvImage
 import android.media.Image
 import android.view.LayoutInflater
+import android.view.ViewGroup
+import android.view.animation.Animation
 import androidx.camera.core.ImageProxy
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
 import java.io.ByteArrayOutputStream
 import kotlin.math.abs
 import kotlin.math.atan2
 
 object Utils {
+
+    fun <T, VB : ViewBinding> RecyclerView.setData(
+        items: List<T>,
+        bindingInflater: (LayoutInflater, ViewGroup, Boolean) -> VB,
+        bindHolder: (binding: VB, item: T, position: Int) -> Unit,
+    ) {
+        if (this.layoutManager == null) {
+            layoutManager = LinearLayoutManager(context)
+        }
+        val existingAdapter = this.adapter as? GenericAdapter<T, VB>
+        if (existingAdapter != null && existingAdapter.currentBindingInflater == bindingInflater) {
+            existingAdapter.updateData(items)
+        } else {
+            val adapter = GenericAdapter(
+                items,
+                bindingInflater,
+                bindHolder,
+                animation
+            )
+            this.adapter = adapter
+        }
+    }
+    class DataViewHolder<VB : ViewBinding>(val binding: VB) : RecyclerView.ViewHolder(binding.root)
+
+    class GenericAdapter<T, VB : ViewBinding>(
+        private var items: List<T>,
+        private val bindingInflater: (LayoutInflater, ViewGroup, Boolean) -> VB,
+        private val bindHolder: (binding: VB, item: T, position: Int) -> Unit,
+        private val animation: Animation?,
+    ) : RecyclerView.Adapter<DataViewHolder<VB>>() {
+        var currentBindingInflater = bindingInflater
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DataViewHolder<VB> {
+            val layoutInflater = LayoutInflater.from(parent.context)
+            val binding = bindingInflater(layoutInflater, parent, false)
+            return DataViewHolder(binding)
+        }
+        override fun onBindViewHolder(holder: DataViewHolder<VB>, position: Int) {
+
+
+            bindHolder(holder.binding, items[position], position)
+            animation?.let {
+                holder.itemView.startAnimation(it)
+            }
+        }
+
+        override fun getItemCount(): Int = items.size
+        fun updateData(newItems: List<T>) {
+            items = newItems
+            notifyDataSetChanged()
+        }
+    }
+
+
     // Calculates the angle between three points
     fun calculateAngle(ax: Float, ay: Float, bx: Float, by: Float, cx: Float, cy: Float): Double {
         val radians = atan2(cy - by, cx - bx) - atan2(ay - by, ax - bx)
