@@ -1,5 +1,4 @@
 package com.ooplab.exercises_fitfuel
-
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.*
@@ -74,11 +73,13 @@ class ExerciseActivity : AppCompatActivity() {
 
     // Replace Handler with coroutine delay
     private suspend fun delayedNoActivitySound() {
-        delay(10000)
-        if (System.currentTimeMillis() - lastConditionExecutionTime >= 5000) {
-            soundManager.playNoActivitySound()
+        val job = scope.launch {
+            delay(10000)
+            if (System.currentTimeMillis() - lastConditionExecutionTime >= 5000) {
+                soundManager.playNoActivitySound()
+            }
         }
-
+        soundManager.setNoActivityJob(job)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -193,7 +194,7 @@ class ExerciseActivity : AppCompatActivity() {
                             (angleRightHip >= 85 && angleRightHip <= 95)
 
                 //condition to complete the exercise
-                if (count >= 10) {
+                if (count >= 5) {
                     runOnUiThread {
                         Toast.makeText(
                             this@ExerciseActivity,
@@ -206,9 +207,9 @@ class ExerciseActivity : AppCompatActivity() {
 
                 // Check the stage and conditions for rep counting
 
-                if (bothLegsUpCondition && stage == "Down") {
+                if (bothLegsUpCondition && stage == "Legs Down") {
                     // When both legs reach approximately 90 degrees, set stage to "Up"
-                    stage = "Up"
+                    stage = "Legs Up"
                     soundManager.playUpSound()
                     isAt90Degrees = true
                     // Reset the handler whenever activity is detected
@@ -219,7 +220,7 @@ class ExerciseActivity : AppCompatActivity() {
                 } else if (isAt90Degrees && bothLegsDownCondition) {
                     // When both legs go back to approximately 180 degrees from 90 degrees, increment rep count
                     count++
-                    stage = "Down"       // Reset stage to "Down" after counting
+                    stage = "Legs Down"       // Reset stage to "Down" after counting
                     soundManager.playDownSound()
                     isAt90Degrees = false // Reset the 90-degree tracker
                     lastConditionExecutionTime = System.currentTimeMillis()
@@ -231,7 +232,7 @@ class ExerciseActivity : AppCompatActivity() {
 
                 // Update TextViews
                 binding.countTextView.text = "Reps: $count"
-                binding.stageTextView.text = "Stage: $stage"
+                binding.stageTextView.text = "Position: $stage"
             }
         }
 
@@ -296,7 +297,7 @@ class ExerciseActivity : AppCompatActivity() {
                 (angleKneeRight > 210.0 && angleKneeRight < 270.0)
             val hipCondition = (angleHipLeft > 120.0 && angleHipLeft < 186.0)
             //condition to complete the exercise
-            if (count >= 10) {
+            if (count >= 5) {
                 runOnUiThread {
                     Toast.makeText(
                         this@ExerciseActivity,
@@ -406,7 +407,7 @@ class ExerciseActivity : AppCompatActivity() {
                     (angleRightLeg > 80 && angleRightLeg < 95)
 
             //condition to complete the exercise
-            if (count >= 3) {
+            if (count >= 5) {
                 runOnUiThread {
                     Toast.makeText(
                         this@ExerciseActivity,
@@ -423,8 +424,8 @@ class ExerciseActivity : AppCompatActivity() {
                 if (armsUpCondition && legsOutCondition) {
                     // When both arms and legs reach the "Up" position, set stage to "Up"
                     //
-                    stage = "Up"
-                    soundManager. playUpSound()
+                    stage = "In"
+                    soundManager. playJumpingJackInSound()
 
                     // Reset the handler whenever activity is detected
                     lastConditionExecutionTime = System.currentTimeMillis()
@@ -432,11 +433,11 @@ class ExerciseActivity : AppCompatActivity() {
                         delayedNoActivitySound()
                     }
 
-                } else if (stage == "Up" && armsDownCondition && legsInCondition) {
+                } else if (stage == "In" && armsDownCondition && legsInCondition) {
                     // When both arms and legs go back to the "Down" position from "Up", increment rep count
                     count++
-                    stage = "Down"       // Reset stage to "Down" after counting
-                    soundManager. playDownSound()
+                    stage = "Out"       // Reset stage to "Down" after counting
+                    soundManager. playJumpingJackOutSound()
 
                     lastConditionExecutionTime = System.currentTimeMillis()
 
@@ -446,16 +447,13 @@ class ExerciseActivity : AppCompatActivity() {
                 }
                 // Update TextViews
                binding. countTextView.text = "Reps: $count"
-               binding. stageTextView.text = "Stage: $stage"
+               binding. stageTextView.text = "Position: $stage"
             }
         }
     }
 
 
-    private fun exercisePlank(firstPersonLandmarks: MutableList<NormalizedLandmark>)
-    {
-
-        // Access the first set of landmarks (for the first detected person)
+    private fun exercisePlank(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
         val landmarks = firstPersonLandmarks
         val leftShoulder = landmarks[11]
         val rightShoulder = landmarks[12]
@@ -480,7 +478,6 @@ class ExerciseActivity : AppCompatActivity() {
             val angleElbowRight = calculateAngle(
                 rightShoulder.x(), rightShoulder.y(),
                 rightElbow.x(), rightElbow.y(),
-
                 rightWrist.x(), rightWrist.y()
             )
 
@@ -496,61 +493,60 @@ class ExerciseActivity : AppCompatActivity() {
                 rightKnee.x(), rightKnee.y()
             )
 
-            val isPlankPose = (angleLeftHip >= 160 ) &&
-                    (angleRightHip >= 160 ) &&
-                    (angleElbowLeft >= 70 && angleElbowLeft <= 115) &&
-                    (angleElbowRight >= 70 && angleElbowRight <= 115)
+            val isPlankPose = ((angleLeftHip >= 155) &&
+                    (angleRightHip >= 155)) &&
+                    ((angleElbowLeft >= 70 && angleElbowLeft <= 115) ||
+                            (angleElbowRight >= 70 && angleElbowRight <= 115))
 
             if (isPlankPose) {
                 if (Pose != "Plank position") {
-                    soundManager.playPlankSound()
                     Pose = "Plank position"
+                    secondsElapsed = 0 // Reset the timer when the position changes to plank
                     runOnUiThread {
-                        timer?.cancel()
-                        timer = object : CountDownTimer(Long.MAX_VALUE, 1000) {
-                            override fun onTick(millisUntilFinished: Long) {
-                                secondsElapsed++
-                                //condition to complete the exercise
-                                if (secondsElapsed >= 60) {
-                                    timer?.cancel()
-                                    runOnUiThread {
-                                        Toast.makeText(
-                                            this@ExerciseActivity,
-                                            "Exercise completed",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                    endExercise()
-                                }
-                            }
-
-
-
-                            override fun onFinish() {}
-                        }.start()
-
+                        startTimer() // Ensure `startTimer` is executed on the main thread.
                     }
-                }
-                else {
-                    if (Pose == "Plank position") {
-                        Pose = "Not Plank Pose"
-                        timer?.cancel()
-
-                    }
-                }
-
-                runOnUiThread() {
-
-                   binding. countTextView.text  = "Time: $secondsElapsed"
-                   binding. stageTextView.text = "Position: $Pose"
-
+                    soundManager.playPlankSound()
                 }
             } else {
+                if (Pose == "Plank position") {
+                    Pose = "Not Plank Pose"
+                    stopTimer()
+                    soundManager.playPlankSound()
+                }
+            }
 
-                soundManager.playNotPlankSound()
+            runOnUiThread {
+                binding.countTextView.text = "Time: $secondsElapsed"
+                binding.stageTextView.text = "Position: $Pose"
             }
         }
     }
+
+    private fun startTimer() {
+        timer?.cancel() // Cancel any running timer
+        timer = object : CountDownTimer(Long.MAX_VALUE, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                secondsElapsed++
+                if (secondsElapsed >= 60) {
+                    stopTimer()
+                    runOnUiThread {
+                        Toast.makeText(this@ExerciseActivity, "Exercise completed", Toast.LENGTH_SHORT).show()
+                    }
+                    endExercise()
+                }
+            }
+
+            override fun onFinish() {}
+        }.start()
+    }
+
+    private fun stopTimer() {
+        timer?.cancel()
+        secondsElapsed = 0
+    }
+
+
+
 
     private fun exerciseSitups(firstPersonLandmarks: MutableList<NormalizedLandmark>)
     {
@@ -606,7 +602,7 @@ class ExerciseActivity : AppCompatActivity() {
             val isKneeDown = (angleKneeLeft > 29.0 && angleKneeLeft < 111.0) || (angleKneeRight > 29.0 && angleKneeRight<111.0)
 
             //condition to complete the exercise
-            if (count >= 10) {
+            if (count >= 5) {
                 runOnUiThread {
                     Toast.makeText(
                         this@ExerciseActivity,
@@ -738,8 +734,15 @@ class ExerciseActivity : AppCompatActivity() {
 
     }
     private fun endExercise() {
+        soundManager.playCompleteSound()
         runOnUiThread {
+
+            poseLandmarker.close() // Closes the pose landmarker to release resources.
+
+            soundManager.stopAllSounds() // Stops all playing sounds
+
             // Show the completion dialog
+
             val dialogView = layoutInflater.inflate(R.layout.exercise_completed_dialog, null)
             val dialog = AlertDialog.Builder(this)
                 .setView(dialogView)
@@ -753,8 +756,7 @@ class ExerciseActivity : AppCompatActivity() {
 
             dialog.show()
 
-            // Close pose landmarker and shutdown camera executor
-            poseLandmarker.close()
+            // Shutdown camera executor
             cameraExecutor.shutdown()
         }
     }
