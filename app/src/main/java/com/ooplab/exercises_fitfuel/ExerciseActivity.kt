@@ -93,8 +93,6 @@ class ExerciseActivity : AppCompatActivity() {
 
         initCameraExecutor() // Initializes the camera executor and pose landmarker.
 
-
-
         requestCameraPermission() // Initiates the process to request camera permission from the user.
     }
 
@@ -132,6 +130,12 @@ class ExerciseActivity : AppCompatActivity() {
 
                 if (allLandmarks.isNotEmpty() && allLandmarks[0].isNotEmpty()) {
 
+                    // stage is Hips down
+
+                    if (exerciseName == "Glute Bridge")
+                    {
+                        stage = "Hips Down"
+                    }
                     when(exerciseName){
                         "Leg Raise" -> exerciseLegRaise(allLandmarks[0])
                         "Kick Back" -> exerciseKickBack(allLandmarks[0])
@@ -139,10 +143,11 @@ class ExerciseActivity : AppCompatActivity() {
                         "Plank" -> exercisePlank(allLandmarks[0])
                         "Situps" -> exerciseSitups(allLandmarks[0])
                         "Squats" -> exerciseSquats(allLandmarks[0])
+                        "Squats" -> exerciseSquats(allLandmarks[0])
+                        "Glute Bridge" -> exerciseGluteBridge(allLandmarks[0])
+                        "Push Ups" -> exercisePushUp(allLandmarks[0])
+                        "Pull Ups" -> exercisePullUp(allLandmarks[0])
                     }
-
-
-
                 }else {
                     Log.d("PoseLandmarks", "No landmarks detected.")
                     // Clear the overlay if no landmarks are detected
@@ -237,6 +242,7 @@ class ExerciseActivity : AppCompatActivity() {
         }
 
     }
+
 
     private fun exerciseKickBack(firstPersonLandmarks: MutableList<NormalizedLandmark>)
     {
@@ -733,6 +739,292 @@ class ExerciseActivity : AppCompatActivity() {
         }
 
     }
+
+    //Strength Exercises
+    private fun exerciseGluteBridge(firstPersonLandmarks: MutableList<NormalizedLandmark>)
+    {
+
+        // Access the first set of landmarks (for the first detected person)
+        val landmarks = firstPersonLandmarks
+
+        // Define points for left and right hips, knees, and shoulders
+        val leftHip = landmarks[23]
+        val leftKnee = landmarks[25]
+        val rightHip = landmarks[24]
+        val rightKnee = landmarks[26]
+        val leftShoulder = landmarks[11]
+        val rightShoulder = landmarks[12]
+        val leftAnkle = landmarks[27]
+        val rightAnkle = landmarks[28]
+
+// Check if all necessary landmarks are detected
+        if (leftHip != null && leftKnee != null &&
+            rightHip != null && rightKnee != null &&
+            leftShoulder != null && rightShoulder != null
+        ) {
+            // Calculate hip angles
+            val angleLeftHip = calculateAngle(
+                leftShoulder.x(), leftShoulder.y(),
+                leftHip.x(), leftHip.y(),
+                leftKnee.x(), leftKnee.y()
+            )
+
+            val angleRightHip = calculateAngle(
+                rightShoulder.x(), rightShoulder.y(),
+                rightHip.x(), rightHip.y(),
+                rightKnee.x(), rightKnee.y()
+            )
+            // Calculate hip angles
+            val angleLeftKnee = calculateAngle(
+                leftHip.x(), leftHip.y(),
+                leftKnee.x(), leftKnee.y(),
+                leftAnkle.x(), leftAnkle.y()
+            )
+
+            val angleRightKnee = calculateAngle(
+                rightHip.x(), rightHip.y(),
+                rightKnee.x(), rightKnee.y(),
+                rightAnkle.x(), rightAnkle.y()
+            )
+
+
+            // Update UI elements (need to run on main thread)
+            runOnUiThread {
+                val bothLegsDownCondition = ((angleLeftHip > 115 &&angleLeftHip<125) &&
+                        (angleRightHip > 115 &&angleRightHip<125)) && ((angleLeftKnee > 25 && angleLeftKnee<35) && (angleRightKnee > 25 && angleRightKnee<35))
+                val bothLegsUpCondition =
+                    ((angleLeftHip > 174) &&
+                            (angleRightHip > 174)) && ((angleLeftKnee > 75 && angleLeftKnee<85) && (angleRightKnee > 75 && angleRightKnee<85))
+
+                //condition to complete the exercise
+                if (count >= 5) {
+                    runOnUiThread {
+                        Toast.makeText(
+                            this@ExerciseActivity,
+                            "Exercise completed",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    endExercise()
+                }
+
+                // Check the stage and conditions for rep counting
+
+                if (bothLegsUpCondition && stage == "Hips Down") {
+                    // When both legs reach approximately 90 degrees, set stage to "Up"
+                    stage = "Hips Up"
+                    soundManager.playUpSound()
+                    // Reset the handler whenever activity is detected
+                    lastConditionExecutionTime = System.currentTimeMillis()
+                    scope.launch {
+                        delayedNoActivitySound()
+                    }
+                } else if (stage == "Hips Up" && bothLegsDownCondition) {
+                    // When both legs go back to approximately 180 degrees from 90 degrees, increment rep count
+                    count++
+                    stage = "Hips Down"       // Reset stage to "Down" after counting
+                    soundManager.playDownSound()
+                    lastConditionExecutionTime = System.currentTimeMillis()
+                    // Reset timer
+                    scope.launch {
+                        delayedNoActivitySound()
+                    }
+                }
+
+                // Update TextViews
+                binding.countTextView.text = "Reps: $count"
+                binding.stageTextView.text = "Position: $stage"
+            }
+        }
+
+    }
+
+    //pushups
+    private fun exercisePushUp(firstPersonLandmarks: MutableList<NormalizedLandmark>)
+    {
+
+        // Access the first set of landmarks (for the first detected person)
+        val landmarks = firstPersonLandmarks
+
+        // Define points for left and right hips, knees, and shoulders
+        val leftHip = landmarks[23]
+        val leftKnee = landmarks[25]
+        val rightHip = landmarks[24]
+        val rightKnee = landmarks[26]
+        val leftShoulder = landmarks[11]
+        val rightShoulder = landmarks[12]
+        val leftElbow= landmarks[13]
+        val rightElbow = landmarks[14]
+        val leftFist= landmarks[15]
+        val rightFist = landmarks[16]
+
+// Check if all necessary landmarks are detected
+        if (leftHip != null && leftKnee != null &&
+            rightHip != null && rightKnee != null &&
+            leftShoulder != null && rightShoulder != null
+        ) {
+            // Calculate hip angles
+            val angleLeftHip = calculateAngle(
+                leftShoulder.x(), leftShoulder.y(),
+                leftHip.x(), leftHip.y(),
+                leftKnee.x(), leftKnee.y()
+            )
+
+            val angleRightHip = calculateAngle(
+                rightShoulder.x(), rightShoulder.y(),
+                rightHip.x(), rightHip.y(),
+                rightKnee.x(), rightKnee.y()
+            )
+            val angleLeftElbow = calculateAngle(
+                leftShoulder.x(), leftShoulder.y(),
+                leftElbow.x(), leftElbow.y(),
+                leftFist.x(), leftFist.y()
+            )
+
+            val angleRightElbow = calculateAngle(
+                rightShoulder.x(), rightShoulder.y(),
+                rightElbow.x(), rightElbow.y(),
+                rightFist.x(), rightFist.y()
+            )
+
+            // Update UI elements (need to run on main thread)
+            runOnUiThread {
+                val bothLegsDownCondition =
+                    ((angleLeftElbow >= 85 && angleLeftElbow <= 95) &&
+                        (angleRightElbow >= 85 && angleRightElbow <= 95)) && ((angleLeftHip > 174) &&
+                        (angleRightHip > 174))
+                val bothLegsUpCondition =
+                    ((angleLeftElbow > 174) &&
+                            (angleRightElbow > 174)) && ((angleLeftHip > 174) &&
+                        (angleRightHip > 174))
+
+                //condition to complete the exercise
+                if (count >= 5) {
+                    runOnUiThread {
+                        Toast.makeText(
+                            this@ExerciseActivity,
+                            "Exercise completed",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    endExercise()
+                }
+
+                // Check the stage and conditions for rep counting
+
+                if (bothLegsUpCondition && stage == "Legs Down") {
+                    // When both legs reach approximately 90 degrees, set stage to "Up"
+                    stage = "Legs Up"
+                    soundManager.playUpSound()
+                    // Reset the handler whenever activity is detected
+                    lastConditionExecutionTime = System.currentTimeMillis()
+                    scope.launch {
+                        delayedNoActivitySound()
+                    }
+                } else if (isAt90Degrees && bothLegsDownCondition) {
+                    // When both legs go back to approximately 180 degrees from 90 degrees, increment rep count
+                    count++
+                    stage = "Legs Down"       // Reset stage to "Down" after counting
+                    soundManager.playDownSound()
+                    lastConditionExecutionTime = System.currentTimeMillis()
+                    // Reset timer
+                    scope.launch {
+                        delayedNoActivitySound()
+                    }
+                }
+
+                // Update TextViews
+                binding.countTextView.text = "Reps: $count"
+                binding.stageTextView.text = "Position: $stage"
+            }
+        }
+
+    }
+
+    private fun exercisePullUp(firstPersonLandmarks: MutableList<NormalizedLandmark>)
+    {
+
+        // Access the first set of landmarks (for the first detected person)
+        val landmarks = firstPersonLandmarks
+
+        // Define points for left and right hips, knees, and shoulders
+        val leftShoulder = landmarks[11]
+        val rightShoulder = landmarks[12]
+        val leftElbow= landmarks[13]
+        val rightElbow = landmarks[14]
+        val leftFist= landmarks[15]
+        val rightFist = landmarks[16]
+
+// Check if all necessary landmarks are detected
+        if (leftElbow != null && leftFist != null &&
+            rightElbow != null && rightFist != null &&
+            leftShoulder != null && rightShoulder != null
+        ) {
+            // Calculate angles
+
+            val angleLeftElbow = calculateAngle(
+                leftShoulder.x(), leftShoulder.y(),
+                leftElbow.x(), leftElbow.y(),
+                leftFist.x(), leftFist.y()
+            )
+
+            val angleRightElbow = calculateAngle(
+                rightShoulder.x(), rightShoulder.y(),
+                rightElbow.x(), rightElbow.y(),
+                rightFist.x(), rightFist.y()
+            )
+
+            // Update UI elements (need to run on main thread)
+            runOnUiThread {
+                val bothLegsDownCondition =
+                    ((angleLeftElbow > 164) && (angleRightElbow > 164))
+
+                val bothLegsUpCondition =
+                    ((angleLeftElbow > 29 && angleLeftElbow < 36) && (angleRightElbow > 29 && angleRightElbow < 36))
+
+                //condition to complete the exercise
+                if (count >= 5) {
+                    runOnUiThread {
+                        Toast.makeText(
+                            this@ExerciseActivity,
+                            "Exercise completed",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    endExercise()
+                }
+
+                // Check the stage and conditions for rep counting
+
+                if (bothLegsUpCondition && stage == "Legs Down") {
+                    // When both legs reach approximately 90 degrees, set stage to "Up"
+                    stage = "Legs Up"
+                    soundManager.playUpSound()
+                    // Reset the handler whenever activity is detected
+                    lastConditionExecutionTime = System.currentTimeMillis()
+                    scope.launch {
+                        delayedNoActivitySound()
+                    }
+                } else if (isAt90Degrees && bothLegsDownCondition) {
+                    // When both legs go back to approximately 180 degrees from 90 degrees, increment rep count
+                    count++
+                    stage = "Legs Down"       // Reset stage to "Down" after counting
+                    soundManager.playDownSound()
+                    lastConditionExecutionTime = System.currentTimeMillis()
+                    // Reset timer
+                    scope.launch {
+                        delayedNoActivitySound()
+                    }
+                }
+
+                // Update TextViews
+                binding.countTextView.text = "Reps: $count"
+                binding.stageTextView.text = "Position: $stage"
+            }
+        }
+
+    }
+
     private fun endExercise() {
         soundManager.playCompleteSound()
         runOnUiThread {
