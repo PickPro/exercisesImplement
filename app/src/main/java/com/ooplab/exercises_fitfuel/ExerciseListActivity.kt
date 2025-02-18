@@ -22,17 +22,44 @@ class ExerciseListActivity : AppCompatActivity() {
         var category = intent.getStringExtra("category")!!
         Toast.makeText(this, category, Toast.LENGTH_SHORT).show()
 
-        var allCategories = listOf(
-            ExerciseModel("Leg Raise" , "Cardio"),
-            ExerciseModel("Plank" , "Cardio"),
-            ExerciseModel("Jumping Jacks" , "Cardio"),
-            ExerciseModel("Kick Back" , "Cardio"),
-            ExerciseModel("Situps" , "Cardio"),
-            ExerciseModel("Squats" , "Cardio"),
 
-            ExerciseModel("PushUp" , "Strength"),
-            ExerciseModel("Stand" , "Normal"),
+        var allCategories = listOf(
+            // Fitness Exercises – Cardio
+            ExerciseModel("Leg Raise", "Cardio"),
+            ExerciseModel("Plank", "Cardio"),
+            ExerciseModel("Jumping Jacks", "Cardio"),
+            ExerciseModel("Kick Back", "Cardio"),
+            ExerciseModel("Situps", "Cardio"),
+            ExerciseModel("Squats", "Cardio"),
+
+            // Strength Exercises
+            ExerciseModel("Squats", "Strength"),
+            ExerciseModel("Push Ups", "Strength"),
+            ExerciseModel("Pull Ups", "Strength"),
+            ExerciseModel("Plank", "Strength"),
+            ExerciseModel("Glute Bridge", "Strength"),
+            ExerciseModel("Situps", "Strength"),
+
+            // Yoga Exercises – Categorized Based on Weight Type
+            ExerciseModel("Cobra Pose", "Underweight"),
+            ExerciseModel("Relieving Pose", "Underweight"),
+            ExerciseModel("Tree Pose", "Underweight"),
+            ExerciseModel("Sun Salutation", "Underweight"),
+            ExerciseModel("Chair Pose", "Underweight"),
+
+            ExerciseModel("Downward Facing Dog", "Overweight"),
+            ExerciseModel("Triangle Pose", "Overweight"),
+            ExerciseModel("Glute Bridge", "Overweight"), // Moved from Strength
+            ExerciseModel("Warrior 2", "Overweight"),
+            ExerciseModel("Child Pose", "Overweight"),
+
+            ExerciseModel("Mountain Pose", "Normal"),
+            ExerciseModel("Easy Pose", "Normal"),
+            ExerciseModel("Boat Pose", "Normal"),
+            ExerciseModel("Cat Cow Pose", "Normal"),
+            ExerciseModel("Bow Pose", "Normal")
         )
+
 
         binding.recyclerview.setData(allCategories.filter { it.type== category}, SampleRowCategoryBinding::inflate) { b, item, position ->
             b.name.text = item.name

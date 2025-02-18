@@ -36,6 +36,8 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.abs
 import kotlin.math.atan2
+import kotlin.math.sqrt
+import kotlin.math.pow
 
 
 class ExerciseActivity : AppCompatActivity() {
@@ -63,11 +65,42 @@ class ExerciseActivity : AppCompatActivity() {
     var isAt90Degrees = false
     // Plank variables
     var Pose = "Position"
-    var timer: CountDownTimer? = null
-    var secondsElapsed = 0
+
+    private var timer: CountDownTimer? = null
+    private var secondsElapsed = 0
+    private var isTimerRunning = false
 
     //variable that contains the name of the exercise to play
     var exerciseName = "squats"
+
+    //cobra exercise
+    private var lastValidTime: Long = 0L
+    private var cobraSecondsElapsed = 0
+    private var cobraSetCount = 0
+    private var readyForCobra = false
+
+    //relieving pose
+    private var relievingPoseHoldTime: Long = 0L
+    private var lastRelievingTime: Long = 0L
+    private var isRelievingPoseActive: Boolean = false
+    private var currentPose: String = "Not Relieving pose"
+
+    //sunSalutationState
+    // State variable and pose sequence definition.
+    private var sunSalutationState: Int = 0
+    private val sunSalutationPoses = arrayOf(
+        "Mountain Pose",
+        "Upward Salute",
+        "Forward Bend",
+        "Plank Pose",
+        "Chaturanga",
+        "Upward Facing Dog",
+        "Downward Facing Dog",
+        "Mountain Pose"
+    )
+    private var currentSunPose: String = sunSalutationPoses[0]
+
+
     // Create a coroutine scope for the activity
     private val scope = CoroutineScope(Dispatchers.Main)
 
@@ -143,10 +176,23 @@ class ExerciseActivity : AppCompatActivity() {
                         "Plank" -> exercisePlank(allLandmarks[0])
                         "Situps" -> exerciseSitups(allLandmarks[0])
                         "Squats" -> exerciseSquats(allLandmarks[0])
-                        "Squats" -> exerciseSquats(allLandmarks[0])
                         "Glute Bridge" -> exerciseGluteBridge(allLandmarks[0])
                         "Push Ups" -> exercisePushUp(allLandmarks[0])
                         "Pull Ups" -> exercisePullUp(allLandmarks[0])
+                        "Cobra Pose"         -> exerciseCobraPose(allLandmarks[0])
+                        "Relieving Pose"     -> exerciseRelievingPose(allLandmarks[0])
+                        "Tree Pose"          -> exerciseTreePose(allLandmarks[0])
+                        "Sun Salutation"     -> exerciseSunSalutation(allLandmarks[0])
+                        "Chair Pose"         -> exerciseChairPose(allLandmarks[0])
+                        "Mountain Pose"      -> exerciseMountainPose(allLandmarks[0])
+                        "Easy Pose"          -> exerciseEasyPose(allLandmarks[0])
+                        "Boat Pose"          -> exerciseBoatPose(allLandmarks[0])
+                        "Cat Cow Pose"       -> exerciseCatCowPose(allLandmarks[0])
+                        "Bow Pose"           -> exerciseBowPose(allLandmarks[0])
+                        "Downward Facing Dog"-> exerciseDownwardFacingDogPose(allLandmarks[0])
+                        "Triangle Pose"      -> exerciseTrianglePose(allLandmarks[0])
+                        "Warrior 2"          -> exerciseWarrior2Pose(allLandmarks[0])
+                        "Child Pose"         -> exerciseChildPose(allLandmarks[0])
                     }
                 }else {
                     Log.d("PoseLandmarks", "No landmarks detected.")
@@ -243,110 +289,64 @@ class ExerciseActivity : AppCompatActivity() {
 
     }
 
+    private fun exerciseKickBack(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
+        // Extract required landmarks for the kicking leg.
+        val leftShoulder = firstPersonLandmarks[11]
+        val leftHip = firstPersonLandmarks[23]
+        val leftKnee = firstPersonLandmarks[25]
+        val leftAnkle = firstPersonLandmarks[27]
 
-    private fun exerciseKickBack(firstPersonLandmarks: MutableList<NormalizedLandmark>)
-    {
+        // Ensure all required landmarks are available.
+        if (leftShoulder == null || leftHip == null || leftKnee == null || leftAnkle == null) {
+            return
+        }
 
-        // Access the first set of landmarks (for the first detected person)
-        val landmarks = firstPersonLandmarks
+        // Calculate angles for the left leg:
+        // 1. Hip angle: formed by left shoulder, left hip, and left knee.
+        val leftHipAngle = calculateAngle(
+            leftShoulder.x(), leftShoulder.y(),
+            leftHip.x(), leftHip.y(),
+            leftKnee.x(), leftKnee.y()
+        )
 
-        // Define points for shoulders, hips, elbows, knees, and ankles
-        val leftShoulder = landmarks[11]
-        val rightShoulder = landmarks[12]
-        val leftHip = landmarks[23]
-        val rightHip = landmarks[24]
-        val leftElbow = landmarks[13]
-        val rightElbow = landmarks[14]
-        val leftKnee = landmarks[25]
-        val rightKnee = landmarks[26]
-        val leftAnkle = landmarks[27]
-        val rightAnkle = landmarks[28]
+        // 2. Knee angle: formed by left hip, left knee, and left ankle.
+        val leftKneeAngle = calculateAngle(
+            leftHip.x(), leftHip.y(),
+            leftKnee.x(), leftKnee.y(),
+            leftAnkle.x(), leftAnkle.y()
+        )
 
+        // Define thresholds:
+        // The left hip angle should be greater than 110° to indicate sufficient hip extension.
+        val hipExtensionThreshold = 110.0
 
-// Check if all necessary landmarks are detected
-        if (leftShoulder != null && rightShoulder != null && leftHip != null && rightHip != null &&
-            leftElbow != null && rightElbow != null && leftKnee != null && rightKnee != null &&
-            leftAnkle != null && rightAnkle != null
-        ) {
+        // For a proper kick, the knee should remain bent:
+        // For example, a knee angle between 60° and 130° is considered correct.
+        val kneeAngleMin = 60.0
+        val kneeAngleMax = 130.0
 
-            // Calculate angles for kickback position
-            val angleKneeLeft = calculateAngle360(
-                leftHip.x(), leftHip.y(),
-                leftKnee.x(), leftKnee.y(),
-                leftAnkle.x(), leftAnkle.y()
-            )
-            val angleKneeRight = calculateAngle360(
-                rightHip.x(), rightHip.y(),
-                rightKnee.x(), rightKnee.y(),
-                rightAnkle.x(), rightAnkle.y()
-            )
+        val isHipExtended = leftHipAngle > hipExtensionThreshold
+        val isKneeBentCorrectly = leftKneeAngle in kneeAngleMin..kneeAngleMax
 
+        // Only count as a valid kickback if both conditions are met.
+        val kickbackDetected = isHipExtended && isKneeBentCorrectly
 
-            val angleHipRight = calculateAngle360(
-                rightShoulder.x(), rightShoulder.y(),
-                rightHip.x(), rightHip.y(),
-                rightKnee.x(), rightKnee.y()
-            )
-            val angleHipLeft = calculateAngle360(
-                leftShoulder.x(), leftShoulder.y(),
-                leftHip.x(), leftHip.y(),
-                leftKnee.x(), leftKnee.y(),
-            )
-
-
-            // Define conditions for kickback position in the range 130 to 150 degrees
-            val kickbackConditionLeft =
-                (angleKneeLeft > 130.0 && angleKneeLeft < 191.0)
-
-            val doggyPosition = angleKneeLeft > 50 && angleKneeLeft < 110
-            val kickbackConditionRight =
-                (angleKneeRight > 210.0 && angleKneeRight < 270.0)
-            val hipCondition = (angleHipLeft > 120.0 && angleHipLeft < 186.0)
-            //condition to complete the exercise
-            if (count >= 5) {
-                runOnUiThread {
-                    Toast.makeText(
-                        this@ExerciseActivity,
-                        "Exercise completed",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                endExercise()
+        if (kickbackDetected) {
+            if (currentPose != "Kickback Exercise") {
+                currentPose = "Kickback Exercise"
+                soundManager.playUpSound()  // Trigger auditory feedback.
             }
-
-// Check if both kickback conditions are met and update the state
-            if (kickbackConditionLeft && hipCondition) {
-                // Set flag indicating that both legs are in the kickback position
-                inKickbackPosition = true
-                soundManager.playUpSound()
-                // Reset the handler whenever activity is detected
-                lastConditionExecutionTime = System.currentTimeMillis()
-                scope.launch {
-                    delayedNoActivitySound()
-                }
-            } else if (inKickbackPosition && doggyPosition) {
-                // Only increment count if transitioning from kickback position to normal position
-                count++
-                inKickbackPosition = false // Reset for the next rep cycle
-                soundManager.playDownSound()
-                // Reset the handler whenever activity is detected
-                lastConditionExecutionTime = System.currentTimeMillis()
-                scope.launch {
-                    delayedNoActivitySound()
-                }
-            }
-
-// Update TextViews on the main thread
-            runOnUiThread() {
-               binding. countTextView.text = "Reps: $count"
-               binding. stageTextView.text =
-                    if (inKickbackPosition) "In Kickback Position" else "Down"
-
+        } else {
+            if (currentPose == "Kickback Exercise") {
+                currentPose = "Not Kickback Exercise"
             }
         }
 
-
+        runOnUiThread {
+            binding.stageTextView.text = "Pose: $currentPose"
+        }
     }
+
 
     private fun exerciseJumpingJack(firstPersonLandmarks: MutableList<NormalizedLandmark>)
     {
@@ -458,7 +458,6 @@ class ExerciseActivity : AppCompatActivity() {
         }
     }
 
-
     private fun exercisePlank(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
         val landmarks = firstPersonLandmarks
         val leftShoulder = landmarks[11]
@@ -507,18 +506,18 @@ class ExerciseActivity : AppCompatActivity() {
             if (isPlankPose) {
                 if (Pose != "Plank position") {
                     Pose = "Plank position"
-                    secondsElapsed = 0 // Reset the timer when the position changes to plank
-                    runOnUiThread {
-                        startTimer() // Ensure `startTimer` is executed on the main thread.
-                    }
-                    soundManager.playPlankSound()
+                }
+                soundManager.playPlankSound()
+
+                if (!isTimerRunning) {
+                    startTimer()
                 }
             } else {
                 if (Pose == "Plank position") {
                     Pose = "Not Plank Pose"
-                    stopTimer()
                     soundManager.playPlankSound()
                 }
+                pauseTimer()
             }
 
             runOnUiThread {
@@ -529,7 +528,9 @@ class ExerciseActivity : AppCompatActivity() {
     }
 
     private fun startTimer() {
-        timer?.cancel() // Cancel any running timer
+        if (isTimerRunning) return // Prevent restarting if already running
+
+        isTimerRunning = true
         timer = object : CountDownTimer(Long.MAX_VALUE, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 secondsElapsed++
@@ -546,13 +547,16 @@ class ExerciseActivity : AppCompatActivity() {
         }.start()
     }
 
+    private fun pauseTimer() {
+        timer?.cancel()
+        isTimerRunning = false
+    }
+
     private fun stopTimer() {
         timer?.cancel()
         secondsElapsed = 0
+        isTimerRunning = false
     }
-
-
-
 
     private fun exerciseSitups(firstPersonLandmarks: MutableList<NormalizedLandmark>)
     {
@@ -1025,6 +1029,1193 @@ class ExerciseActivity : AppCompatActivity() {
 
     }
 
+// Yoga
+// Underweight exercises
+    
+    private fun exerciseCobraPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
+        // Extract relevant Mediapipe landmarks.
+        val leftShoulder = firstPersonLandmarks[11]
+        val rightShoulder = firstPersonLandmarks[12]
+        val leftElbow = firstPersonLandmarks[13]
+        val rightElbow = firstPersonLandmarks[14]
+        val leftWrist = firstPersonLandmarks[15]
+        val rightWrist = firstPersonLandmarks[16]
+        val leftHip = firstPersonLandmarks[23]
+        val rightHip = firstPersonLandmarks[24]
+        val leftKnee = firstPersonLandmarks[25]
+        val rightKnee = firstPersonLandmarks[26]
+
+        // Ensure all required landmarks are available.
+        if (leftShoulder != null && rightShoulder != null &&
+            leftElbow != null && rightElbow != null &&
+            leftWrist != null && rightWrist != null &&
+            leftHip != null && rightHip != null &&
+            leftKnee != null && rightKnee != null) {
+
+            // Compute elbow angles.
+            val angleElbowLeft = calculateAngle(
+                leftShoulder.x(), leftShoulder.y(),
+                leftElbow.x(), leftElbow.y(),
+                leftWrist.x(), leftWrist.y()
+            )
+            val angleElbowRight = calculateAngle(
+                rightShoulder.x(), rightShoulder.y(),
+                rightElbow.x(), rightElbow.y(),
+                rightWrist.x(), rightWrist.y()
+            )
+
+            // Compute hip angles.
+            val angleHipLeft = calculateAngle(
+                leftShoulder.x(), leftShoulder.y(),
+                leftHip.x(), leftHip.y(),
+                leftKnee.x(), leftKnee.y()
+            )
+            val angleHipRight = calculateAngle(
+                rightShoulder.x(), rightShoulder.y(),
+                rightHip.x(), rightHip.y(),
+                rightKnee.x(), rightKnee.y()
+            )
+
+            // Define the Cobra pose (up) condition.
+            // Arms should be moderately bent and at least one hip must show an arch.
+            val isCobraPose = ((angleElbowLeft in 80.0..120.0) || (angleElbowRight in 80.0..120.0)) &&
+                    ((angleHipLeft < 150) || (angleHipRight < 150))
+
+            // Define the Down position condition.
+            // Arms nearly extended and the body flat.
+            val isDownPosition = (angleElbowLeft > 140.0 && angleElbowRight > 140.0) &&
+                    (angleHipLeft > 160.0 && angleHipRight > 160.0)
+
+            val currentTime = System.currentTimeMillis()
+
+            if (isDownPosition) {
+                // User is in the down position.
+                if (Pose != "Down position") {
+                    Pose = "Down position"
+                }
+                // Allow the subsequent Cobra pose to be counted.
+                readyForCobra = true
+                // Reset timer reference to ensure fresh timing when moving up.
+                lastValidTime = 0L
+            } else if (isCobraPose && readyForCobra) {
+                // User is in Cobra (up) pose and had previously been down.
+                if (Pose != "Cobra pose") {
+                    Pose = "Cobra pose"
+                }
+                if (lastValidTime == 0L) {
+                    lastValidTime = currentTime
+                } else {
+                    val elapsed = currentTime - lastValidTime
+                    if (elapsed >= 1000) {
+                        val secondsPassed = (elapsed / 1000).toInt()
+                        cobraSecondsElapsed += secondsPassed
+                        lastValidTime += secondsPassed * 1000
+
+                        // If 60 seconds of valid Cobra pose are accumulated, complete a set.
+                        if (cobraSecondsElapsed >= 60) {
+                            cobraSetCount++
+                            runOnUiThread {
+                                Toast.makeText(this@ExerciseActivity,
+                                    "Set $cobraSetCount complete", Toast.LENGTH_SHORT).show()
+                            }
+                            if (cobraSetCount >= 2) {
+                                runOnUiThread {
+                                    Toast.makeText(this@ExerciseActivity,
+                                        "Exercise completed", Toast.LENGTH_SHORT).show()
+                                }
+                                endExercise()
+                            } else {
+                                // Prepare for next set: reset counter and require a new down position.
+                                cobraSecondsElapsed = 0
+                                lastValidTime = currentTime
+                                readyForCobra = false
+                            }
+                        }
+                    }
+                }
+            } else {
+                // If neither valid down nor valid Cobra pose, update the pose state.
+                if (Pose == "Cobra pose" || Pose == "Down position") {
+                    Pose = "Not Cobra pose"
+                    //soundManager.playUpSound()
+                }
+                // Reset timer reference.
+                lastValidTime = 0L
+            }
+
+            // Update UI.
+            runOnUiThread {
+                binding.countTextView.text = "Time: $cobraSecondsElapsed s"
+                binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2 | Pose: $Pose"
+            }
+        }
+    }
+
+//    private fun startCobraTimer() {
+//        if (isCobraTimerRunning) return
+//
+//        isCobraTimerRunning = true
+//        cobraTimer = object : CountDownTimer(Long.MAX_VALUE, 1000) {
+//            override fun onTick(millisUntilFinished: Long) {
+//                cobraSecondsElapsed++
+//                if (cobraSecondsElapsed >= 60) {
+//                    // Complete the set.
+//                    cobraSetCount++
+//                    pauseCobraTimer()
+//                    runOnUiThread {
+//                        Toast.makeText(this@ExerciseActivity, "Set $cobraSetCount complete", Toast.LENGTH_SHORT).show()
+//                    }
+//                    // Reset seconds counter for the next set.
+//                    cobraSecondsElapsed = 0
+//                }
+//            }
+//            override fun onFinish() {}
+//        }.start()
+//    }
+//
+//    private fun pauseCobraTimer() {
+//        cobraTimer?.cancel()
+//        isCobraTimerRunning = false
+//    }
+//
+//    private fun stopCobraTimer() {
+//        cobraTimer?.cancel()
+//        cobraSecondsElapsed = 0
+//        isCobraTimerRunning = false
+//    }
+
+
+
+    private fun exerciseRelievingPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
+        // Extract head-related landmarks.
+        val leftEye = firstPersonLandmarks[2]
+        val rightEye = firstPersonLandmarks[5]
+
+        // Extract shoulder, elbow, wrist, hip, and knee landmarks.
+        val leftShoulder = firstPersonLandmarks[11]
+        val rightShoulder = firstPersonLandmarks[12]
+        val leftElbow = firstPersonLandmarks[13]
+        val rightElbow = firstPersonLandmarks[14]
+        val leftWrist = firstPersonLandmarks[15]
+        val rightWrist = firstPersonLandmarks[16]
+        val leftHip = firstPersonLandmarks[23]
+        val rightHip = firstPersonLandmarks[24]
+        val leftKnee = firstPersonLandmarks[25]
+        val rightKnee = firstPersonLandmarks[26]
+
+        if (leftEye != null && rightEye != null &&
+            leftShoulder != null && rightShoulder != null &&
+            leftElbow != null && rightElbow != null &&
+            leftWrist != null && rightWrist != null &&
+            leftHip != null && rightHip != null &&
+            leftKnee != null && rightKnee != null) {
+
+            // Compute elbow angles.
+            val angleElbowLeft = calculateAngle(
+                leftShoulder.x(), leftShoulder.y(),
+                leftElbow.x(), leftElbow.y(),
+                leftWrist.x(), leftWrist.y()
+            )
+            val angleElbowRight = calculateAngle(
+                rightShoulder.x(), rightShoulder.y(),
+                rightElbow.x(), rightElbow.y(),
+                rightWrist.x(), rightWrist.y()
+            )
+
+            // Compute hip angles.
+            val angleHipLeft = calculateAngle(
+                leftShoulder.x(), leftShoulder.y(),
+                leftHip.x(), leftHip.y(),
+                leftKnee.x(), leftKnee.y()
+            )
+            val angleHipRight = calculateAngle(
+                rightShoulder.x(), rightShoulder.y(),
+                rightHip.x(), rightHip.y(),
+                rightKnee.x(), rightKnee.y()
+            )
+
+            // Compute the average y-coordinate of the eyes.
+            val averageEyeY = (leftEye.y() + rightEye.y()) / 2.0
+
+            // Compute the midpoint of the shoulder line.
+            val midShoulderY = (leftShoulder.y() + rightShoulder.y()) / 2.0
+
+            // Define a margin for head lowering.
+            val headMargin = 0.05
+
+            // Head is considered lowered if eyes are below shoulders by the margin.
+            val isHeadDown = averageEyeY > (midShoulderY + headMargin)
+
+            // Relieving pose criteria:
+            // 1. Forward bend: at least one hip angle below 110°.
+            // 2. Both arms extended: elbow angles above 150°.
+            // 3. Head is lowered: as determined by eye position.
+            val isRelievingPose = ((angleHipLeft < 110) || (angleHipRight < 110)) &&
+                    (angleElbowLeft > 150 && angleElbowRight > 150) &&
+                    isHeadDown
+
+            val currentTime = System.currentTimeMillis()
+
+            if (isRelievingPose) {
+                if (!isRelievingPoseActive) {
+                    isRelievingPoseActive = true
+                    lastRelievingTime = currentTime
+                    currentPose = "Relieving pose"
+                    soundManager.playUpSound()
+                } else {
+                    val elapsed = currentTime - lastRelievingTime
+                    relievingPoseHoldTime += elapsed
+                    lastRelievingTime = currentTime
+                }
+            } else {
+                isRelievingPoseActive = false
+                relievingPoseHoldTime = 0L
+                lastRelievingTime = 0L
+                if (currentPose == "Relieving pose") {
+                    currentPose = "Not Relieving pose"
+                }
+            }
+
+            runOnUiThread {
+                binding.countTextView.text = "Relief Hold: ${relievingPoseHoldTime / 1000} s"
+                binding.stageTextView.text = "Pose: $currentPose"
+            }
+        }
+    }
+
+    private fun exerciseTreePose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
+        // Extract essential landmarks.
+        val leftShoulder = firstPersonLandmarks[11]
+        val rightShoulder = firstPersonLandmarks[12]
+        val leftHip = firstPersonLandmarks[23]
+        val rightHip = firstPersonLandmarks[24]
+        val leftKnee = firstPersonLandmarks[25]
+        val rightKnee = firstPersonLandmarks[26]
+        val leftAnkle = firstPersonLandmarks[27]
+        val rightAnkle = firstPersonLandmarks[28]
+        val leftWrist = firstPersonLandmarks[15]
+        val rightWrist = firstPersonLandmarks[16]
+
+        // Verify that all required landmarks are detected.
+        if (leftShoulder != null && rightShoulder != null &&
+            leftHip != null && rightHip != null &&
+            leftKnee != null && rightKnee != null &&
+            leftAnkle != null && rightAnkle != null &&
+            leftWrist != null && rightWrist != null) {
+
+            // Calculate knee angles for both legs.
+            // The angle at the knee is computed using the hip, knee, and ankle landmarks.
+            val leftKneeAngle = calculateAngle(
+                leftHip.x(), leftHip.y(),
+                leftKnee.x(), leftKnee.y(),
+                leftAnkle.x(), leftAnkle.y()
+            )
+            val rightKneeAngle = calculateAngle(
+                rightHip.x(), rightHip.y(),
+                rightKnee.x(), rightKnee.y(),
+                rightAnkle.x(), rightAnkle.y()
+            )
+
+            // Define thresholds:
+            // A raised (bent) leg should have a knee angle below the raisedLegThreshold.
+            // The supporting (straight) leg should have a knee angle above the supportingLegThreshold.
+            val raisedLegThreshold = 130.0
+            val supportingLegThreshold = 160.0
+
+            // Evaluate arm elevation: both wrists must be above the corresponding shoulders.
+            // In normalized coordinates, a lower y-value indicates a higher position.
+            val armsRaised = (leftWrist.y() < leftShoulder.y() && rightWrist.y() < rightShoulder.y())
+
+            // Determine if the left leg is raised:
+            // The left knee is significantly bent while the right knee remains nearly straight.
+            val isLeftTreePose = (leftKneeAngle < raisedLegThreshold) &&
+                    (rightKneeAngle > supportingLegThreshold)
+
+            // Determine if the right leg is raised:
+            // The right knee is significantly bent while the left knee remains nearly straight.
+            val isRightTreePose = (rightKneeAngle < raisedLegThreshold) &&
+                    (leftKneeAngle > supportingLegThreshold)
+
+            // Overall, tree pose is detected if either variant is present and the arms are raised.
+            val isTreePose = (isLeftTreePose || isRightTreePose) && armsRaised
+
+            // Update pose state and trigger sound feedback.
+            if (isTreePose) {
+                if (currentPose != "Tree Pose") {
+                    currentPose = "Tree Pose"
+                    soundManager.playUpSound()
+                }
+            } else {
+                if (currentPose == "Tree Pose") {
+                    currentPose = "Not Tree Pose"
+                }
+            }
+
+            runOnUiThread {
+                binding.stageTextView.text = "Pose: $currentPose"
+            }
+        }
+    }
+
+
+    /**
+     * Processes the incoming Mediapipe landmarks to detect and transition through the Sun Salutation sequence.
+     *
+     * The detection relies solely on computed joint angles and relative landmark positions.
+     * Transition only occurs when the currently expected pose is reliably detected.
+     */
+    private fun exerciseSunSalutation(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
+        // Extract essential landmarks.
+        val leftShoulder = firstPersonLandmarks[11]
+        val rightShoulder = firstPersonLandmarks[12]
+        val leftHip = firstPersonLandmarks[23]
+        val rightHip = firstPersonLandmarks[24]
+        val leftKnee = firstPersonLandmarks[25]
+        val rightKnee = firstPersonLandmarks[26]
+        val leftAnkle = firstPersonLandmarks[27]
+        val rightAnkle = firstPersonLandmarks[28]
+        val leftElbow = firstPersonLandmarks[13]
+        val rightElbow = firstPersonLandmarks[14]
+        val leftWrist = firstPersonLandmarks[15]
+        val rightWrist = firstPersonLandmarks[16]
+        val nose = firstPersonLandmarks[0]  // Optionally used for additional criteria
+
+        // Verify that all required landmarks are present.
+        if (leftShoulder == null || rightShoulder == null ||
+            leftHip == null || rightHip == null ||
+            leftKnee == null || rightKnee == null ||
+            leftAnkle == null || rightAnkle == null ||
+            leftElbow == null || rightElbow == null ||
+            leftWrist == null || rightWrist == null) {
+            return
+        }
+
+        // Compute joint angles.
+        val leftKneeAngle = calculateAngle(
+            leftHip.x(), leftHip.y(),
+            leftKnee.x(), leftKnee.y(),
+            leftAnkle.x(), leftAnkle.y()
+        )
+        val rightKneeAngle = calculateAngle(
+            rightHip.x(), rightHip.y(),
+            rightKnee.x(), rightKnee.y(),
+            rightAnkle.x(), rightAnkle.y()
+        )
+        val leftElbowAngle = calculateAngle(
+            leftShoulder.x(), leftShoulder.y(),
+            leftElbow.x(), leftElbow.y(),
+            leftWrist.x(), leftWrist.y()
+        )
+        val rightElbowAngle = calculateAngle(
+            rightShoulder.x(), rightShoulder.y(),
+            rightElbow.x(), rightElbow.y(),
+            rightWrist.x(), rightWrist.y()
+        )
+        val leftHipAngle = calculateAngle(
+            leftShoulder.x(), leftShoulder.y(),
+            leftHip.x(), leftHip.y(),
+            leftKnee.x(), leftKnee.y()
+        )
+        val rightHipAngle = calculateAngle(
+            rightShoulder.x(), rightShoulder.y(),
+            rightHip.x(), rightHip.y(),
+            rightKnee.x(), rightKnee.y()
+        )
+
+        // Average y-coordinate values used in some pose detections.
+        val avgShoulderY = (leftShoulder.y() + rightShoulder.y()) / 2.0
+        val avgHipY = (leftHip.y() + rightHip.y()) / 2.0
+
+        // Determine which pose is detected based on the current state.
+        var detectedPose: String? = null
+
+        when (sunSalutationState) {
+            0 -> { // Mountain Pose: Upright, arms at sides, nearly extended knees.
+                if (leftWrist.y() > leftShoulder.y() && rightWrist.y() > rightShoulder.y() &&
+                    leftKneeAngle > 170 && rightKneeAngle > 170) {
+                    detectedPose = "Mountain Pose"
+                }
+            }
+            1 -> { // Upward Salute: Arms raised overhead; wrists above shoulders.
+                if (leftWrist.y() < leftShoulder.y() && rightWrist.y() < rightShoulder.y() &&
+                    leftKneeAngle > 170 && rightKneeAngle > 170) {
+                    detectedPose = "Upward Salute"
+                }
+            }
+            2 -> { // Forward Bend: Forward flexion indicated by a reduced hip angle (< 100°) on at least one side.
+                if ((leftHipAngle < 100 || rightHipAngle < 100) &&
+                    // Arms remain hanging (wrists below shoulder level).
+                    leftWrist.y() > leftShoulder.y() && rightWrist.y() > rightShoulder.y()) {
+                    detectedPose = "Forward Bend"
+                }
+            }
+            3 -> { // Plank Pose: Horizontal alignment; hip angles ≥ 155°; moderate elbow flexion.
+                if ((leftHipAngle >= 155 && rightHipAngle >= 155) &&
+                    ((leftElbowAngle in 70.0..115.0) || (rightElbowAngle in 70.0..115.0))) {
+                    detectedPose = "Plank Pose"
+                }
+            }
+            4 -> { // Chaturanga: Lowered from plank with elbows significantly bent (< 90°).
+                if (leftElbowAngle < 90 && rightElbowAngle < 90 &&
+                    leftHipAngle >= 150 && rightHipAngle >= 150) {
+                    detectedPose = "Chaturanga"
+                }
+            }
+            5 -> { // Upward Facing Dog: Chest lifted; elbows nearly extended (> 160°) and hips remain low.
+                if (leftElbowAngle > 160 && rightElbowAngle > 160 &&
+                    avgHipY > avgShoulderY) {
+                    detectedPose = "Upward Facing Dog"
+                }
+            }
+            6 -> { // Downward Facing Dog: Inverted V shape; arms extended (elbow angles > 160°)
+                // and hips elevated relative to shoulders (hips are higher, so avgHipY is lower than avgShoulderY by a margin).
+                if (leftElbowAngle > 160 && rightElbowAngle > 160 &&
+                    avgHipY < (avgShoulderY - 0.1)) {
+                    detectedPose = "Downward Facing Dog"
+                }
+            }
+            7 -> { // Final Mountain Pose to complete the cycle.
+                if (leftWrist.y() > leftShoulder.y() && rightWrist.y() > rightShoulder.y() &&
+                    leftKneeAngle > 170 && rightKneeAngle > 170) {
+                    detectedPose = "Mountain Pose"
+                }
+            }
+        }
+
+        // If the detected pose matches the expected pose for the current state, advance the sequence.
+        if (detectedPose != null && detectedPose == sunSalutationPoses[sunSalutationState]) {
+            currentSunPose = detectedPose
+            soundManager.playUpSound()  // Trigger a transition sound.
+            // Advance state; wrap-around when the sequence completes.
+            sunSalutationState = (sunSalutationState + 1) % sunSalutationPoses.size
+        }
+
+        // Update the UI with the current Sun Salutation pose and state.
+        runOnUiThread {
+            binding.stageTextView.text = "Sun Salutation: ${sunSalutationPoses[sunSalutationState]}"
+            binding.countTextView.text = "Current Pose: $currentSunPose"
+        }
+    }
+
+    private fun exerciseChairPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
+        // Extract essential landmarks.
+        val leftShoulder = firstPersonLandmarks[11]
+        val rightShoulder = firstPersonLandmarks[12]
+        val leftHip = firstPersonLandmarks[23]
+        val rightHip = firstPersonLandmarks[24]
+        val leftKnee = firstPersonLandmarks[25]
+        val rightKnee = firstPersonLandmarks[26]
+        val leftAnkle = firstPersonLandmarks[27]
+        val rightAnkle = firstPersonLandmarks[28]
+        val leftWrist = firstPersonLandmarks[15]
+        val rightWrist = firstPersonLandmarks[16]
+
+        // Proceed only if all required landmarks are available.
+        if (leftShoulder == null || rightShoulder == null ||
+            leftHip == null || rightHip == null ||
+            leftKnee == null || rightKnee == null ||
+            leftAnkle == null || rightAnkle == null ||
+            leftWrist == null || rightWrist == null) {
+            return
+        }
+
+        // Compute knee angles for both legs using the hip, knee, and ankle landmarks.
+        val leftKneeAngle = calculateAngle(
+            leftHip.x(), leftHip.y(),
+            leftKnee.x(), leftKnee.y(),
+            leftAnkle.x(), leftAnkle.y()
+        )
+        val rightKneeAngle = calculateAngle(
+            rightHip.x(), rightHip.y(),
+            rightKnee.x(), rightKnee.y(),
+            rightAnkle.x(), rightAnkle.y()
+        )
+
+        // Evaluate arm elevation:
+        // In normalized coordinates, a lower y-value indicates a higher position.
+        val armsRaised = (leftWrist.y() < leftShoulder.y() && rightWrist.y() < rightShoulder.y())
+
+        // Chair Pose (Utkatasana) criteria:
+        // 1. Both knees must be significantly bent.
+        //    Here, a knee angle between 80° and 110° is considered valid.
+        // 2. Both arms must be raised overhead.
+        val validKneeAngles = (leftKneeAngle in 80.0..110.0) && (rightKneeAngle in 80.0..110.0)
+        val isChairPose = validKneeAngles && armsRaised
+
+        // Update pose state and provide auditory feedback.
+        if (isChairPose) {
+            if (currentPose != "Chair Pose") {
+                currentPose = "Chair Pose"
+                soundManager.playUpSound()  // Play Chair Pose sound cue.
+            }
+        } else {
+            if (currentPose == "Chair Pose") {
+                currentPose = "Not Chair Pose"
+            }
+        }
+
+        // Update the UI.
+        runOnUiThread {
+            binding.stageTextView.text = "Pose: $currentPose"
+        }
+    }
+
+    //Normal Pose
+
+    private fun exerciseMountainPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
+        // Extract essential landmarks.
+        val leftShoulder = firstPersonLandmarks[11]
+        val rightShoulder = firstPersonLandmarks[12]
+        val leftHip = firstPersonLandmarks[23]
+        val rightHip = firstPersonLandmarks[24]
+        val leftKnee = firstPersonLandmarks[25]
+        val rightKnee = firstPersonLandmarks[26]
+        val leftAnkle = firstPersonLandmarks[27]
+        val rightAnkle = firstPersonLandmarks[28]
+        val leftWrist = firstPersonLandmarks[15]
+        val rightWrist = firstPersonLandmarks[16]
+
+        // Proceed only if all required landmarks are available.
+        if (leftShoulder == null || rightShoulder == null ||
+            leftHip == null || rightHip == null ||
+            leftKnee == null || rightKnee == null ||
+            leftAnkle == null || rightAnkle == null ||
+            leftWrist == null || rightWrist == null) {
+            return
+        }
+
+        // Compute knee angles using hip, knee, and ankle landmarks.
+        val leftKneeAngle = calculateAngle(
+            leftHip.x(), leftHip.y(),
+            leftKnee.x(), leftKnee.y(),
+            leftAnkle.x(), leftAnkle.y()
+        )
+        val rightKneeAngle = calculateAngle(
+            rightHip.x(), rightHip.y(),
+            rightKnee.x(), rightKnee.y(),
+            rightAnkle.x(), rightAnkle.y()
+        )
+
+        // Check that both knees are nearly straight.
+        val kneesStraight = (leftKneeAngle > 170) && (rightKneeAngle > 170)
+
+        // Check that the arms are relaxed by the sides.
+        // In normalized coordinates, a lower wrist (higher y) indicates a lower position.
+        val armsRelaxed = (leftWrist.y() > leftShoulder.y() && rightWrist.y() > rightShoulder.y())
+
+        // Determine if the Mountain Pose is valid.
+        val isMountainPose = kneesStraight && armsRelaxed
+
+        if (isMountainPose) {
+            if (currentPose != "Mountain Pose") {
+                currentPose = "Mountain Pose"
+                soundManager.playUpSound()
+            }
+        } else {
+            if (currentPose == "Mountain Pose") {
+                currentPose = "Not Mountain Pose"
+            }
+        }
+
+        runOnUiThread {
+            binding.stageTextView.text = "Pose: $currentPose"
+        }
+    }
+
+    //Yoga Normal
+
+
+    private fun exerciseEasyPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
+        // Extract essential landmarks: hips, knees, ankles, and shoulders.
+        val leftHip = firstPersonLandmarks[23]
+        val rightHip = firstPersonLandmarks[24]
+        val leftKnee = firstPersonLandmarks[25]
+        val rightKnee = firstPersonLandmarks[26]
+        val leftAnkle = firstPersonLandmarks[27]
+        val rightAnkle = firstPersonLandmarks[28]
+        val leftShoulder = firstPersonLandmarks[11]
+        val rightShoulder = firstPersonLandmarks[12]
+
+        // Ensure all required landmarks are available.
+        if (leftHip == null || rightHip == null ||
+            leftKnee == null || rightKnee == null ||
+            leftAnkle == null || rightAnkle == null ||
+            leftShoulder == null || rightShoulder == null) {
+            return
+        }
+
+        // Compute knee angles using hip, knee, and ankle coordinates.
+        val leftKneeAngle = calculateAngle(
+            leftHip.x(), leftHip.y(),
+            leftKnee.x(), leftKnee.y(),
+            leftAnkle.x(), leftAnkle.y()
+        )
+        val rightKneeAngle = calculateAngle(
+            rightHip.x(), rightHip.y(),
+            rightKnee.x(), rightKnee.y(),
+            rightAnkle.x(), rightAnkle.y()
+        )
+
+        // For Easy Pose, both knees should be significantly flexed.
+        // A knee angle less than 120° is considered indicative of a seated (cross-legged) posture.
+        val kneesFlexed = (leftKneeAngle < 120) && (rightKneeAngle < 120)
+
+        // Compute the Euclidean distance between the ankles.
+        val dx = leftAnkle.x() - rightAnkle.x()
+        val dy = leftAnkle.y() - rightAnkle.y()
+        val ankleDistance = sqrt(dx * dx + dy * dy)
+        // In Easy Pose, the legs are crossed, so the ankles should be close together.
+        val anklesClose = ankleDistance < 0.12  // This threshold may be calibrated as needed.
+
+        // Verify that the upper body remains upright.
+        // One simple check is to ensure that the shoulders are roughly aligned horizontally.
+        val shouldersAligned = abs(leftShoulder.x() - rightShoulder.x()) < 0.2
+
+        // Combine the conditions to decide if the practitioner is in Easy Pose.
+        val isEasyPose = kneesFlexed && anklesClose && shouldersAligned
+
+        if (isEasyPose) {
+            if (currentPose != "Easy Pose") {
+                currentPose = "Easy Pose"
+                soundManager.playUpSound()  // Play the Easy Pose sound cue.
+            }
+        } else {
+            if (currentPose == "Easy Pose") {
+                currentPose = "Not Easy Pose"
+            }
+        }
+
+        runOnUiThread {
+            binding.stageTextView.text = "Pose: $currentPose"
+        }
+    }
+
+    private fun exerciseBoatPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
+        // Extract essential landmarks.
+        val leftShoulder = firstPersonLandmarks[11]
+        val rightShoulder = firstPersonLandmarks[12]
+        val leftHip = firstPersonLandmarks[23]
+        val rightHip = firstPersonLandmarks[24]
+        val leftKnee = firstPersonLandmarks[25]
+        val rightKnee = firstPersonLandmarks[26]
+        val leftAnkle = firstPersonLandmarks[27]
+        val rightAnkle = firstPersonLandmarks[28]
+        val leftWrist = firstPersonLandmarks[15]
+        val rightWrist = firstPersonLandmarks[16]
+
+        // Proceed only if all required landmarks are available.
+        if (leftShoulder == null || rightShoulder == null ||
+            leftHip == null || rightHip == null ||
+            leftKnee == null || rightKnee == null ||
+            leftAnkle == null || rightAnkle == null ||
+            leftWrist == null || rightWrist == null) {
+            return
+        }
+
+        // Compute midpoints for shoulders and hips.
+        val midShoulderX = (leftShoulder.x() + rightShoulder.x()) / 2.0
+        val midShoulderY = (leftShoulder.y() + rightShoulder.y()) / 2.0
+        val midHipX = (leftHip.x() + rightHip.x()) / 2.0
+        val midHipY = (leftHip.y() + rightHip.y()) / 2.0
+
+        // Compute trunk vector components.
+        val dx = midShoulderX - midHipX
+        val dy = midShoulderY - midHipY
+
+        // Calculate trunk angle relative to the vertical.
+        // In normalized coordinates, the vertical axis has zero horizontal deviation.
+        // The absolute angle (in degrees) from vertical is given by arctan(|dx|/|dy|).
+        val trunkAngleRadians = kotlin.math.atan2(kotlin.math.abs(dx), kotlin.math.abs(dy))
+        val trunkAngleDegrees = Math.toDegrees(trunkAngleRadians)
+
+        // For Boat Pose, the trunk is expected to lean backward.
+        // We require a moderate inclination between, for example, 30° and 60°.
+        val trunkInclined = trunkAngleDegrees in 30.0..60.0
+
+        // Check if the legs are lifted.
+        // In Boat Pose, the ankles are elevated relative to the hips.
+        val avgAnkleY = (leftAnkle.y() + rightAnkle.y()) / 2.0
+        val legsLifted = avgAnkleY < midHipY
+
+        // Compute knee angles.
+        val leftKneeAngle = calculateAngle(
+            leftHip.x(), leftHip.y(),
+            leftKnee.x(), leftKnee.y(),
+            leftAnkle.x(), leftAnkle.y()
+        )
+        val rightKneeAngle = calculateAngle(
+            rightHip.x(), rightHip.y(),
+            rightKnee.x(), rightKnee.y(),
+            rightAnkle.x(), rightAnkle.y()
+        )
+        // For a fully extended leg, the knee angle should be high (e.g., > 160°).
+        val legsExtended = (leftKneeAngle > 160) && (rightKneeAngle > 160)
+
+        // Evaluate arm extension.
+        // In Boat Pose, the arms are usually extended forward.
+        // We require the wrists to be above the shoulders (i.e. lower y-values).
+        val armsExtended = (leftWrist.y() < leftShoulder.y()) && (rightWrist.y() < rightShoulder.y())
+
+        // Combine the criteria to determine Boat Pose.
+        val isBoatPose = trunkInclined && legsLifted && legsExtended && armsExtended
+
+        // Update pose state and trigger auditory feedback.
+        if (isBoatPose) {
+            if (currentPose != "Boat Pose") {
+                currentPose = "Boat Pose"
+                soundManager.playUpSound()  // Trigger the Boat Pose sound cue.
+            }
+        } else {
+            if (currentPose == "Boat Pose") {
+                currentPose = "Not Boat Pose"
+            }
+        }
+
+        runOnUiThread {
+            binding.stageTextView.text = "Pose: $currentPose"
+        }
+    }
+
+    private fun exerciseCatCowPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
+        // Extract required landmarks.
+        val nose = firstPersonLandmarks[0]
+        val leftShoulder = firstPersonLandmarks[11]
+        val rightShoulder = firstPersonLandmarks[12]
+        val leftWrist = firstPersonLandmarks[15]
+        val rightWrist = firstPersonLandmarks[16]
+        val leftKnee = firstPersonLandmarks[25]
+        val rightKnee = firstPersonLandmarks[26]
+
+        // Ensure all required landmarks are available.
+        if (nose == null || leftShoulder == null || rightShoulder == null ||
+            leftWrist == null || rightWrist == null ||
+            leftKnee == null || rightKnee == null) {
+            return
+        }
+
+        // Confirm the practitioner is on all fours.
+        // In normalized coordinates, a higher y-value indicates a lower position.
+        val groundThreshold = 0.8  // Adjust as needed based on camera view.
+        val onAllFours = (leftWrist.y() > groundThreshold && rightWrist.y() > groundThreshold &&
+                leftKnee.y() > groundThreshold && rightKnee.y() > groundThreshold)
+
+        if (!onAllFours) {
+            // If not on all fours, do not update Cat-Cow status.
+            if (currentPose == "Cat Pose" || currentPose == "Cow Pose") {
+                currentPose = "Not Cat-Cow Pose"
+            }
+            runOnUiThread {
+                binding.stageTextView.text = "Pose: $currentPose"
+            }
+            return
+        }
+
+        // Compute the midpoint of the shoulders.
+        val midShoulderX = (leftShoulder.x() + rightShoulder.x()) / 2.0
+        val midShoulderY = (leftShoulder.y() + rightShoulder.y()) / 2.0
+
+        // Define a margin to reduce sensitivity.
+        val margin = 0.05
+
+        // Determine pose phase based on head (nose) position relative to mid-shoulder.
+        if (nose.y() < midShoulderY - margin) {
+            // In Cow Pose, the head is lifted (nose is higher than the shoulder line).
+            if (currentPose != "Cow Pose") {
+                currentPose = "Cow Pose"
+                //soundManager.playCowPoseSound()
+            }
+        } else if (nose.y() > midShoulderY + margin) {
+            // In Cat Pose, the head is tucked (nose is lower than the shoulder line).
+            if (currentPose != "Cat Pose") {
+                currentPose = "Cat Pose"
+                //soundManager.playCatPoseSound()
+            }
+        } else {
+            // When the difference is minimal, maintain the current state.
+            if (currentPose != "Neutral Cat-Cow") {
+                currentPose = "Neutral Cat-Cow"
+            }
+        }
+
+        // Update the UI.
+        runOnUiThread {
+            binding.stageTextView.text = "Pose: $currentPose"
+        }
+    }
+
+    private fun exerciseBowPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
+        // Extract essential landmarks.
+        val leftWrist = firstPersonLandmarks[15]
+        val rightWrist = firstPersonLandmarks[16]
+        val leftAnkle = firstPersonLandmarks[27]
+        val rightAnkle = firstPersonLandmarks[28]
+        val leftKnee = firstPersonLandmarks[25]
+        val rightKnee = firstPersonLandmarks[26]
+        val leftShoulder = firstPersonLandmarks[11]
+        val rightShoulder = firstPersonLandmarks[12]
+        val leftHip = firstPersonLandmarks[23]
+        val rightHip = firstPersonLandmarks[24]
+
+        // Ensure all required landmarks are available.
+        if (leftWrist == null || rightWrist == null ||
+            leftAnkle == null || rightAnkle == null ||
+            leftKnee == null || rightKnee == null ||
+            leftShoulder == null || rightShoulder == null ||
+            leftHip == null || rightHip == null) {
+            return
+        }
+
+        // Compute Euclidean distances between wrists and corresponding ankles.
+        val leftWristAnkleDistance = sqrt((leftWrist.x() - leftAnkle.x()).pow(2) +
+                (leftWrist.y() - leftAnkle.y()).pow(2))
+        val rightWristAnkleDistance = sqrt((rightWrist.x() - rightAnkle.x()).pow(2) +
+                (rightWrist.y() - rightAnkle.y()).pow(2))
+
+        // Define a proximity threshold for hands reaching the ankles.
+        val proximityThreshold = 0.12
+        val handsGraspingAnkles = (leftWristAnkleDistance < proximityThreshold) &&
+                (rightWristAnkleDistance < proximityThreshold)
+
+        // Compute knee angles using hip, knee, and ankle landmarks.
+        val leftKneeAngle = calculateAngle(
+            leftHip.x(), leftHip.y(),
+            leftKnee.x(), leftKnee.y(),
+            leftAnkle.x(), leftAnkle.y()
+        )
+        val rightKneeAngle = calculateAngle(
+            rightHip.x(), rightHip.y(),
+            rightKnee.x(), rightKnee.y(),
+            rightAnkle.x(), rightAnkle.y()
+        )
+
+        // For Bow Pose, knees should be bent.
+        val kneesBent = (leftKneeAngle in 70.0..120.0) && (rightKneeAngle in 70.0..120.0)
+
+        // Compute midpoints for shoulders and hips.
+        val midShoulderY = (leftShoulder.y() + rightShoulder.y()) / 2.0
+        val midHipY = (leftHip.y() + rightHip.y()) / 2.0
+        // In normalized coordinates, a smaller y-value indicates a higher position.
+        // The chest is considered lifted if the shoulders (chest) are above the hips.
+        val chestLifted = midShoulderY < midHipY
+
+        // Combine all conditions to detect Bow Pose.
+        val isBowPose = handsGraspingAnkles && kneesBent && chestLifted
+
+        if (isBowPose) {
+            if (currentPose != "Bow Pose") {
+                currentPose = "Bow Pose"
+                //soundManager.playBowPoseSound() // Trigger auditory feedback.
+            }
+        } else {
+            if (currentPose == "Bow Pose") {
+                currentPose = "Not Bow Pose"
+            }
+        }
+
+        runOnUiThread {
+            binding.stageTextView.text = "Pose: $currentPose"
+        }
+    }
+
+    //Overweight exercises
+
+    private fun exerciseDownwardFacingDogPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
+        // Extract essential landmarks.
+        val leftShoulder = firstPersonLandmarks[11]
+        val rightShoulder = firstPersonLandmarks[12]
+        val leftElbow = firstPersonLandmarks[13]
+        val rightElbow = firstPersonLandmarks[14]
+        val leftWrist = firstPersonLandmarks[15]
+        val rightWrist = firstPersonLandmarks[16]
+        val leftHip = firstPersonLandmarks[23]
+        val rightHip = firstPersonLandmarks[24]
+        val leftKnee = firstPersonLandmarks[25]
+        val rightKnee = firstPersonLandmarks[26]
+        val leftAnkle = firstPersonLandmarks[27]
+        val rightAnkle = firstPersonLandmarks[28]
+
+        // Ensure all required landmarks are available.
+        if (leftShoulder == null || rightShoulder == null ||
+            leftElbow == null || rightElbow == null ||
+            leftWrist == null || rightWrist == null ||
+            leftHip == null || rightHip == null ||
+            leftKnee == null || rightKnee == null ||
+            leftAnkle == null || rightAnkle == null) {
+            return
+        }
+
+        // Compute elbow angles using the shoulder, elbow, and wrist landmarks.
+        val leftElbowAngle = calculateAngle(
+            leftShoulder.x(), leftShoulder.y(),
+            leftElbow.x(), leftElbow.y(),
+            leftWrist.x(), leftWrist.y()
+        )
+        val rightElbowAngle = calculateAngle(
+            rightShoulder.x(), rightShoulder.y(),
+            rightElbow.x(), rightElbow.y(),
+            rightWrist.x(), rightWrist.y()
+        )
+
+        // Compute knee angles using the hip, knee, and ankle landmarks.
+        val leftKneeAngle = calculateAngle(
+            leftHip.x(), leftHip.y(),
+            leftKnee.x(), leftKnee.y(),
+            leftAnkle.x(), leftAnkle.y()
+        )
+        val rightKneeAngle = calculateAngle(
+            rightHip.x(), rightHip.y(),
+            rightKnee.x(), rightKnee.y(),
+            rightAnkle.x(), rightAnkle.y()
+        )
+
+        // Compute the midpoints for shoulders and hips (using the y-coordinates).
+        val midShoulderY = (leftShoulder.y() + rightShoulder.y()) / 2.0
+        val midHipY = (leftHip.y() + rightHip.y()) / 2.0
+
+        // Define a margin to detect hip lift (in normalized coordinates, a smaller y-value means higher up).
+        val hipLiftMargin = 0.05
+
+        // Pose conditions:
+        // - Arms extended: both elbow angles > 160°.
+        // - Legs extended: both knee angles > 160°.
+        // - Hips lifted: the mid-hip y-coordinate is at least hipLiftMargin less than the mid-shoulder y-coordinate.
+        val armsExtended = (leftElbowAngle > 160 && rightElbowAngle > 160)
+        val legsExtended = (leftKneeAngle > 160 && rightKneeAngle > 160)
+        val hipsLifted = midHipY < (midShoulderY - hipLiftMargin)
+
+        val isDownwardFacingDog = armsExtended && legsExtended && hipsLifted
+
+        if (isDownwardFacingDog) {
+            if (currentPose != "Downward-Facing Dog") {
+                currentPose = "Downward-Facing Dog"
+//                soundManager.playDownwardDogSound()  // Play a sound cue.
+            }
+        } else {
+            if (currentPose == "Downward-Facing Dog") {
+                currentPose = "Not Downward-Facing Dog"
+            }
+        }
+
+        runOnUiThread {
+            binding.stageTextView.text = "Pose: $currentPose"
+        }
+    }
+
+    private fun exerciseTrianglePose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
+        // Extract essential landmarks.
+        val leftShoulder = firstPersonLandmarks[11]
+        val rightShoulder = firstPersonLandmarks[12]
+        val leftHip = firstPersonLandmarks[23]
+        val rightHip = firstPersonLandmarks[24]
+        val leftWrist = firstPersonLandmarks[15]
+        val rightWrist = firstPersonLandmarks[16]
+        val leftAnkle = firstPersonLandmarks[27]
+        val rightAnkle = firstPersonLandmarks[28]
+
+        // Proceed only if all required landmarks are available.
+        if (leftShoulder == null || rightShoulder == null ||
+            leftHip == null || rightHip == null ||
+            leftWrist == null || rightWrist == null ||
+            leftAnkle == null || rightAnkle == null) {
+            return
+        }
+
+        // Compute midpoints for shoulders and hips.
+        val midShoulderX = (leftShoulder.x() + rightShoulder.x()) / 2.0
+        val midShoulderY = (leftShoulder.y() + rightShoulder.y()) / 2.0
+        val midHipX = (leftHip.x() + rightHip.x()) / 2.0
+        val midHipY = (leftHip.y() + rightHip.y()) / 2.0
+
+        // Compute torso tilt angle relative to vertical.
+        // A perfectly vertical torso gives an angle of 0°. We compute:
+        val dx = Math.abs(midShoulderX - midHipX)
+        val dy = Math.abs(midShoulderY - midHipY)
+        val torsoTiltRadians = Math.atan2(dx, dy)
+        val torsoTiltDegrees = Math.toDegrees(torsoTiltRadians)
+        // Expected tilt range for Triangle Pose.
+        val torsoTiltValid = torsoTiltDegrees in 20.0..60.0
+
+        // Evaluate arm positions.
+        // One arm should be raised (wrist above shoulder) while the other is lowered.
+        val leftArmUp = leftWrist.y() < leftShoulder.y()
+        val rightArmUp = rightWrist.y() < rightShoulder.y()
+        val leftArmDown = leftWrist.y() > leftShoulder.y()
+        val rightArmDown = rightWrist.y() > rightShoulder.y()
+        val armCondition = (leftArmUp && rightArmDown) || (rightArmUp && leftArmDown)
+
+        // Evaluate leg stance: a wide stance is typical.
+        // Check the horizontal distance between the hips.
+        val hipDistance = rightHip.x() - leftHip.x()
+        val wideStance = hipDistance > 0.3  // Threshold may be calibrated as needed.
+
+        // Combine conditions to decide if the practitioner is in Triangle Pose.
+        val isTrianglePose = torsoTiltValid && armCondition && wideStance
+
+        if (isTrianglePose) {
+            if (currentPose != "Triangle Pose") {
+                currentPose = "Triangle Pose"
+//                soundManager.playTrianglePoseSound()  // Play a sound cue for Triangle Pose.
+            }
+        } else {
+            if (currentPose == "Triangle Pose") {
+                currentPose = "Not Triangle Pose"
+            }
+        }
+
+        runOnUiThread {
+            binding.stageTextView.text = "Pose: $currentPose"
+        }
+    }
+
+    private fun exerciseWarrior2Pose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
+        // Extract essential landmarks.
+        val leftShoulder = firstPersonLandmarks[11]
+        val rightShoulder = firstPersonLandmarks[12]
+        val leftHip = firstPersonLandmarks[23]
+        val rightHip = firstPersonLandmarks[24]
+        val leftKnee = firstPersonLandmarks[25]
+        val rightKnee = firstPersonLandmarks[26]
+        val leftAnkle = firstPersonLandmarks[27]
+        val rightAnkle = firstPersonLandmarks[28]
+        val leftWrist = firstPersonLandmarks[15]
+        val rightWrist = firstPersonLandmarks[16]
+
+        // Proceed only if all required landmarks are available.
+        if (leftShoulder == null || rightShoulder == null ||
+            leftHip == null || rightHip == null ||
+            leftKnee == null || rightKnee == null ||
+            leftAnkle == null || rightAnkle == null ||
+            leftWrist == null || rightWrist == null) {
+            return
+        }
+
+        // Compute knee angles using hip, knee, and ankle coordinates.
+        val leftKneeAngle = calculateAngle(
+            leftHip.x(), leftHip.y(),
+            leftKnee.x(), leftKnee.y(),
+            leftAnkle.x(), leftAnkle.y()
+        )
+        val rightKneeAngle = calculateAngle(
+            rightHip.x(), rightHip.y(),
+            rightKnee.x(), rightKnee.y(),
+            rightAnkle.x(), rightAnkle.y()
+        )
+
+        // Determine front leg condition:
+        // Either left knee is bent (80°-110°) while right knee is nearly extended (>160°),
+        // or vice versa.
+        val isLeftLegFront = (leftKneeAngle in 80.0..110.0) && (rightKneeAngle > 160)
+        val isRightLegFront = (rightKneeAngle in 80.0..110.0) && (leftKneeAngle > 160)
+        val kneeCondition = isLeftLegFront || isRightLegFront
+
+        // Evaluate arm positions.
+        // Left arm should extend to the left: left wrist is left of left shoulder,
+        // and right arm should extend to the right: right wrist is right of right shoulder.
+        // Also, their y-values should be similar (difference < 0.05).
+        val leftArmExtended = (leftWrist.x() < leftShoulder.x()) &&
+                (Math.abs(leftWrist.y() - leftShoulder.y()) < 0.05)
+        val rightArmExtended = (rightWrist.x() > rightShoulder.x()) &&
+                (Math.abs(rightWrist.y() - rightShoulder.y()) < 0.05)
+        val armCondition = leftArmExtended && rightArmExtended
+
+        // Evaluate wide stance: horizontal distance between ankles should exceed a threshold.
+        val ankleDistance = Math.abs(rightAnkle.x() - leftAnkle.x())
+        val wideStance = ankleDistance > 0.3  // Threshold can be calibrated.
+
+        // Ensure torso is upright: midpoints of shoulders and hips should be nearly aligned horizontally.
+        val midShoulderX = (leftShoulder.x() + rightShoulder.x()) / 2.0
+        val midHipX = (leftHip.x() + rightHip.x()) / 2.0
+        val torsoUpright = Math.abs(midShoulderX - midHipX) < 0.1
+
+        // Combine all conditions to determine if the pose is Warrior 2.
+        val isWarrior2Pose = kneeCondition && armCondition && wideStance && torsoUpright
+
+        if (isWarrior2Pose) {
+            if (currentPose != "Warrior 2") {
+                currentPose = "Warrior 2"
+//                soundManager.playWarrior2PoseSound()  // Trigger the Warrior 2 sound cue.
+            }
+        } else {
+            if (currentPose == "Warrior 2") {
+                currentPose = "Not Warrior 2"
+            }
+        }
+
+        runOnUiThread {
+            binding.stageTextView.text = "Pose: $currentPose"
+        }
+    }
+    private fun exerciseChildPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
+        // Extract required landmarks.
+        val nose = firstPersonLandmarks[0]
+        val leftShoulder = firstPersonLandmarks[11]
+        val rightShoulder = firstPersonLandmarks[12]
+        val leftHip = firstPersonLandmarks[23]
+        val rightHip = firstPersonLandmarks[24]
+        val leftKnee = firstPersonLandmarks[25]
+        val rightKnee = firstPersonLandmarks[26]
+        val leftAnkle = firstPersonLandmarks[27]
+        val rightAnkle = firstPersonLandmarks[28]
+
+        // Ensure all required landmarks are available.
+        if (nose == null || leftShoulder == null || rightShoulder == null ||
+            leftHip == null || rightHip == null ||
+            leftKnee == null || rightKnee == null ||
+            leftAnkle == null || rightAnkle == null) {
+            return
+        }
+
+        // Compute midpoints for shoulders and hips.
+        val midShoulderX = (leftShoulder.x() + rightShoulder.x()) / 2.0
+        val midShoulderY = (leftShoulder.y() + rightShoulder.y()) / 2.0
+        val midHipX = (leftHip.x() + rightHip.x()) / 2.0
+        val midHipY = (leftHip.y() + rightHip.y()) / 2.0
+
+        // Compute torso tilt angle relative to vertical.
+        val dx = kotlin.math.abs(midShoulderX - midHipX)
+        val dy = kotlin.math.abs(midShoulderY - midHipY)
+        val torsoTiltRadians = kotlin.math.atan2(dx, dy)
+        val torsoTiltDegrees = Math.toDegrees(torsoTiltRadians)
+        // In Balasana, the torso is folded forward; we expect a significant tilt (e.g., > 45°).
+        val torsoTiltValid = torsoTiltDegrees > 45.0
+
+        // Check head position:
+        // In Balasana, the head is lowered. The nose should be lower (i.e., have a higher y-value) than the mid-shoulder by a margin.
+        val headLowered = nose.y() > (midShoulderY + 0.05)
+
+        // Compute knee angles using hip, knee, and ankle landmarks.
+        val leftKneeAngle = calculateAngle(
+            leftHip.x(), leftHip.y(),
+            leftKnee.x(), leftKnee.y(),
+            leftAnkle.x(), leftAnkle.y()
+        )
+        val rightKneeAngle = calculateAngle(
+            rightHip.x(), rightHip.y(),
+            rightKnee.x(), rightKnee.y(),
+            rightAnkle.x(), rightAnkle.y()
+        )
+        // In a kneeling position (Balasana), the knees are bent. A knee angle less than about 120° is typical.
+        val kneesBent = (leftKneeAngle < 120) && (rightKneeAngle < 120)
+
+        // Combine all conditions to decide if the practitioner is in Balasana.
+        val isBalasana = torsoTiltValid && headLowered && kneesBent
+
+        if (isBalasana) {
+            if (currentPose != "Balasana") {
+                currentPose = "Balasana"
+//                soundManager.playBalasanaSound()  // Trigger auditory feedback.
+            }
+        } else {
+            if (currentPose == "Balasana") {
+                currentPose = "Not Balasana"
+            }
+        }
+
+        runOnUiThread {
+            binding.stageTextView.text = "Pose: $currentPose"
+        }
+    }
+
     private fun endExercise() {
         soundManager.playCompleteSound()
         runOnUiThread {
@@ -1184,12 +2375,6 @@ class ExerciseActivity : AppCompatActivity() {
         }
     }
 
-    // Calculates the angle between three points
-    private fun calculateAngleKickBack(ax: Float, ay: Float, bx: Float, by: Float, cx: Float, cy: Float): Double {
-        val radians = atan2(cy - by, cx - bx) - atan2(ay - by, ax - bx)
-        val angle = Math.toDegrees(abs(radians).toDouble())
-        return angle
-    }
 
 
 }
