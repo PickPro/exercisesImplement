@@ -504,9 +504,8 @@ class ExerciseActivity : AppCompatActivity() {
                             (angleElbowRight >= 70 && angleElbowRight <= 115))
 
             if (isPlankPose) {
-                if (Pose != "Plank position") {
-                    Pose = "Plank position"
-                }
+
+                Pose = "Plank position"
                 soundManager.playPlankSound()
 
                 if (!isTimerRunning) {
@@ -1829,6 +1828,8 @@ class ExerciseActivity : AppCompatActivity() {
             if (currentPose != "Cat Pose") {
                 currentPose = "Cat Pose"
                 //soundManager.playCatPoseSound()
+                soundManager.playUpSound()
+
             }
         } else {
             // When the difference is minimal, maintain the current state.
@@ -1905,6 +1906,8 @@ class ExerciseActivity : AppCompatActivity() {
             if (currentPose != "Bow Pose") {
                 currentPose = "Bow Pose"
                 //soundManager.playBowPoseSound() // Trigger auditory feedback.
+                soundManager.playUpSound()
+
             }
         } else {
             if (currentPose == "Bow Pose") {
@@ -1989,6 +1992,7 @@ class ExerciseActivity : AppCompatActivity() {
             if (currentPose != "Downward-Facing Dog") {
                 currentPose = "Downward-Facing Dog"
 //                soundManager.playDownwardDogSound()  // Play a sound cue.
+                soundManager.playUpSound()
             }
         } else {
             if (currentPose == "Downward-Facing Dog") {
@@ -2055,6 +2059,8 @@ class ExerciseActivity : AppCompatActivity() {
             if (currentPose != "Triangle Pose") {
                 currentPose = "Triangle Pose"
 //                soundManager.playTrianglePoseSound()  // Play a sound cue for Triangle Pose.
+                soundManager.playUpSound()
+
             }
         } else {
             if (currentPose == "Triangle Pose") {
@@ -2134,6 +2140,8 @@ class ExerciseActivity : AppCompatActivity() {
             if (currentPose != "Warrior 2") {
                 currentPose = "Warrior 2"
 //                soundManager.playWarrior2PoseSound()  // Trigger the Warrior 2 sound cue.
+                soundManager.playUpSound()
+
             }
         } else {
             if (currentPose == "Warrior 2") {
@@ -2204,6 +2212,8 @@ class ExerciseActivity : AppCompatActivity() {
             if (currentPose != "Balasana") {
                 currentPose = "Balasana"
 //                soundManager.playBalasanaSound()  // Trigger auditory feedback.
+                soundManager.playUpSound()
+
             }
         } else {
             if (currentPose == "Balasana") {
