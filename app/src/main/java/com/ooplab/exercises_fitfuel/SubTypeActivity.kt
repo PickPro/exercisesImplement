@@ -21,7 +21,7 @@ class SubTypeActivity : AppCompatActivity() {
         Toast.makeText(this, "Yoga", Toast.LENGTH_SHORT).show()
 
         var allCategories = listOf(
-            "Under weight",
+            "Under Weight",
             "Normal",
             "Over Weight",
         )

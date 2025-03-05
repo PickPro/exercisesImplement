@@ -41,17 +41,17 @@ class ExerciseListActivity : AppCompatActivity() {
             ExerciseModel("Situps", "Strength"),
 
             // Yoga Exercises – Categorized Based on Weight Type
-            ExerciseModel("Cobra Pose", "Underweight"),
-            ExerciseModel("Relieving Pose", "Underweight"),
-            ExerciseModel("Tree Pose", "Underweight"),
-            ExerciseModel("Sun Salutation", "Underweight"),
-            ExerciseModel("Chair Pose", "Underweight"),
+            ExerciseModel("Cobra Pose", "Under Weight"),
+            ExerciseModel("Relieving Pose", "Under Weight"),
+            ExerciseModel("Tree Pose", "Under Weight"),
+            ExerciseModel("Sun Salutation", "Under Weight"),
+            ExerciseModel("Chair Pose", "Under Weight"),
 
-            ExerciseModel("Downward Facing Dog", "Overweight"),
-            ExerciseModel("Triangle Pose", "Overweight"),
-            ExerciseModel("Glute Bridge", "Overweight"), // Moved from Strength
-            ExerciseModel("Warrior 2", "Overweight"),
-            ExerciseModel("Child Pose", "Overweight"),
+            ExerciseModel("Downward Facing Dog", "Over Weight"),
+            ExerciseModel("Triangle Pose", "Over Weight"),
+            ExerciseModel("Glute Bridge", "Over Weight"), // Moved from Strength
+            ExerciseModel("Warrior 2", "Over Weight"),
+            ExerciseModel("Child Pose", "Over Weight"),
 
             ExerciseModel("Mountain Pose", "Normal"),
             ExerciseModel("Easy Pose", "Normal"),

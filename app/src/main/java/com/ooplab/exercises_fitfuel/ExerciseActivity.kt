@@ -514,7 +514,7 @@ class ExerciseActivity : AppCompatActivity() {
             } else {
                 if (Pose == "Plank position") {
                     Pose = "Not Plank Pose"
-                    soundManager.playPlankSound()
+                    soundManager.playNotPlankSound()
                 }
                 pauseTimer()
             }
