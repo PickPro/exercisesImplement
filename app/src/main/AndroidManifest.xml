@@ -31,7 +31,9 @@
         </activity>
         <activity
             android:name=".ExerciseActivity"
-            android:exported="true">
+            android:exported="true"
+            android:configChanges="orientation|screenSize"
+            >
 
         </activity>
         <activity

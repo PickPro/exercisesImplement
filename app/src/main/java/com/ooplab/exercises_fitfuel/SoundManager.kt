@@ -17,14 +17,20 @@ class SoundManager(var activity: Activity) {
         noActivityJob = job
     }
     // List of sound resources for "up" and "down" stages
-    private val upSounds = listOf(
-        R.raw.up_1, R.raw.up_2, R.raw.up_3, R.raw.up_4, R.raw.up_5,
-        R.raw.up_6, R.raw.up_7, R.raw.up_8, R.raw.up_10
-    )
     private val downSounds = listOf(
-        R.raw.down_1, R.raw.down_2, R.raw.down_3, R.raw.down_4, R.raw.down_5,
-        R.raw.down_6, R.raw.down_7, R.raw.down_8, R.raw.down_9, R.raw.down_10
+        R.raw.up_1, R.raw.up_2, R.raw.up_3, R.raw.up_4, R.raw.up_5,
+        R.raw.up_6, R.raw.up_7, R.raw.up_8, R.raw.up_9,R.raw.up_10,
+        R.raw.up_11, R.raw.up_12, R.raw.up_13, R.raw.up_14, R.raw.up_15,
+        R.raw.up_16, R.raw.up_17, R.raw.up_18, R.raw.up_20
     )
+
+    private val upSounds = listOf(
+        R.raw.down_1, R.raw.down_2, R.raw.down_3, R.raw.down_4, R.raw.down_5,
+        R.raw.down_6, R.raw.down_7, R.raw.down_8, R.raw.down_9, R.raw.down_10,
+        R.raw.down_11, R.raw.down_12, R.raw.down_13, R.raw.down_14, R.raw.down_15,
+        R.raw.down_16, R.raw.down_17, R.raw.down_18, R.raw.down_19, R.raw.down_20,
+    )
+
     private val motivationalSounds = listOf(
         R.raw.motivational1, R.raw.motivational2, R.raw.motivational3, R.raw.motivational4, R.raw.motivational5, R.raw.motivational6,R.raw.motivational7,R.raw.motivational8,R.raw.motivational9,R.raw.motivational10,
     )

@@ -1,10 +1,14 @@
 package com.ooplab.exercises_fitfuel
 import android.Manifest
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.*
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import android.view.Gravity
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -69,12 +73,14 @@ class ExerciseActivity : AppCompatActivity() {
     private var timer: CountDownTimer? = null
     private var secondsElapsed = 0
     private var isTimerRunning = false
+    private var isActivityActive = true
+    private val TAG = "ExerciseTimer" // Debugging tag
+
 
     //variable that contains the name of the exercise to play
-    var exerciseName = "squats"
+    var exerciseName = "Plank"
 
     //cobra exercise
-    private var lastValidTime: Long = 0L
     private var cobraSecondsElapsed = 0
     private var cobraSetCount = 0
     private var readyForCobra = false
@@ -100,6 +106,12 @@ class ExerciseActivity : AppCompatActivity() {
     )
     private var currentSunPose: String = sunSalutationPoses[0]
 
+    // Define these as global variables in your Activity or exercise class.
+    private var setCount = 0
+    private var holdTime = 0L
+    private var lastValidTime = 0L
+    private val targetHoldTime = 5000L  // 30 seconds per set (adjust as needed)
+    private val targetSetCount = 2       // Number of sets needed to complete the exercise
 
     // Create a coroutine scope for the activity
     private val scope = CoroutineScope(Dispatchers.Main)
@@ -127,6 +139,18 @@ class ExerciseActivity : AppCompatActivity() {
         initCameraExecutor() // Initializes the camera executor and pose landmarker.
 
         requestCameraPermission() // Initiates the process to request camera permission from the user.
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+
+        if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            binding.countTextView.gravity = Gravity.START
+            binding.stageTextView.gravity = Gravity.START
+        } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT) {
+            binding.countTextView.gravity = Gravity.CENTER
+            binding.stageTextView.gravity = Gravity.CENTER
+        }
     }
 
 
@@ -327,7 +351,17 @@ class ExerciseActivity : AppCompatActivity() {
 
         val isHipExtended = leftHipAngle > hipExtensionThreshold
         val isKneeBentCorrectly = leftKneeAngle in kneeAngleMin..kneeAngleMax
-
+//condition to complete the exercise
+        if (count >= 4) {
+            runOnUiThread {
+                Toast.makeText(
+                    this@ExerciseActivity,
+                    "Exercise completed",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            endExercise()
+        }
         // Only count as a valid kickback if both conditions are met.
         val kickbackDetected = isHipExtended && isKneeBentCorrectly
 
@@ -335,10 +369,23 @@ class ExerciseActivity : AppCompatActivity() {
             if (currentPose != "Kickback Exercise") {
                 currentPose = "Kickback Exercise"
                 soundManager.playUpSound()  // Trigger auditory feedback.
+                count++
+// Reset the handler whenever activity is detected
+                lastConditionExecutionTime = System.currentTimeMillis()
+                scope.launch {
+                    delayedNoActivitySound()
+                }
+
             }
         } else {
             if (currentPose == "Kickback Exercise") {
                 currentPose = "Not Kickback Exercise"
+                soundManager.playDownSound()
+            }
+            // Reset the handler whenever activity is detected
+            lastConditionExecutionTime = System.currentTimeMillis()
+            scope.launch {
+                delayedNoActivitySound()
             }
         }
 
@@ -458,6 +505,13 @@ class ExerciseActivity : AppCompatActivity() {
         }
     }
 
+    private var isPlankActive = false          // True when the user is currently in plank pose.
+    private var plankStartTime: Long = 0L        // When the current plank period started.
+    private var accumulatedPlankTime: Long = 0L  // Total time (ms) accumulated from previous plank periods.
+    private val targetPlankTime = 10000L         // Target time in ms (e.g., 60 seconds).
+
+    private val plankHandler = Handler(Looper.getMainLooper())
+    private var plankRunnable: Runnable? = null
     private fun exercisePlank(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
         val landmarks = firstPersonLandmarks
         val leftShoulder = landmarks[11]
@@ -498,63 +552,78 @@ class ExerciseActivity : AppCompatActivity() {
                 rightKnee.x(), rightKnee.y()
             )
 
-            val isPlankPose = ((angleLeftHip >= 155) &&
-                    (angleRightHip >= 155)) &&
-                    ((angleElbowLeft >= 70 && angleElbowLeft <= 115) ||
-                            (angleElbowRight >= 70 && angleElbowRight <= 115))
+            // Determine if the user is in Plank Pose.
+            val isPlankPose = ((angleLeftHip >= 155) && (angleRightHip >= 155)) &&
+                    ((angleElbowLeft in 70.0..115.0) || (angleElbowRight in 70.0..115.0))
 
             if (isPlankPose) {
+                if (!isPlankActive) {
+                    // User just entered the plank pose.
+                    isPlankActive = true
+                    plankStartTime = System.currentTimeMillis()
+                    startPlankTimer()  // Begin periodic UI updates.
+                    soundManager.playPlankSound()
+                    Pose = "Plank position"
 
-                Pose = "Plank position"
-                soundManager.playPlankSound()
-
-                if (!isTimerRunning) {
-                    startTimer()
                 }
             } else {
-                if (Pose == "Plank position") {
-                    Pose = "Not Plank Pose"
+                if (isPlankActive) {
+                    // User just left the plank pose—accumulate the elapsed time.
+                    accumulatedPlankTime += System.currentTimeMillis() - plankStartTime
+                    isPlankActive = false
+                    stopPlankTimer()   // Stop UI updates.
                     soundManager.playNotPlankSound()
+                    Pose = "Not Plank Pose"
+                    // Reset the handler whenever activity is detected
+                    lastConditionExecutionTime = System.currentTimeMillis()
+                    scope.launch {
+                        delayedNoActivitySound()
+                    }
                 }
-                pauseTimer()
             }
+            updatePlankUI()  // Update the UI immediately.
+        }
+    }
+    private fun updatePlankUI() {
+        // Compute total elapsed time.
+        val currentPlankTime = if (isPlankActive) {
+            accumulatedPlankTime + (System.currentTimeMillis() - plankStartTime)
+        } else {
+            accumulatedPlankTime
+        }
+        val secondsElapsed = (currentPlankTime / 1000).toInt()
 
+        runOnUiThread {
+            binding.countTextView.text = "Time: $secondsElapsed"
+            binding.stageTextView.text = "Position: $Pose"
+        }
+        // If the target plank time is reached, finish the exercise.
+        if (currentPlankTime >= targetPlankTime) {
             runOnUiThread {
-                binding.countTextView.text = "Time: $secondsElapsed"
-                binding.stageTextView.text = "Position: $Pose"
+                Toast.makeText(this@ExerciseActivity, "Exercise completed", Toast.LENGTH_SHORT).show()
             }
+            endExercise()
         }
     }
 
-    private fun startTimer() {
-        if (isTimerRunning) return // Prevent restarting if already running
 
-        isTimerRunning = true
-        timer = object : CountDownTimer(Long.MAX_VALUE, 1000) {
-            override fun onTick(millisUntilFinished: Long) {
-                secondsElapsed++
-                if (secondsElapsed >= 60) {
-                    stopTimer()
-                    runOnUiThread {
-                        Toast.makeText(this@ExerciseActivity, "Exercise completed", Toast.LENGTH_SHORT).show()
-                    }
-                    endExercise()
-                }
+    private fun startPlankTimer() {
+        // Avoid multiple runnables.
+        if (plankRunnable != null) return
+        plankRunnable = object : Runnable {
+            override fun run() {
+                updatePlankUI()
+                plankHandler.postDelayed(this, 1000)  // Update every second.
             }
-
-            override fun onFinish() {}
-        }.start()
+        }
+        plankHandler.post(plankRunnable!!)
     }
 
-    private fun pauseTimer() {
-        timer?.cancel()
-        isTimerRunning = false
-    }
-
-    private fun stopTimer() {
-        timer?.cancel()
-        secondsElapsed = 0
-        isTimerRunning = false
+    private fun stopPlankTimer() {
+        plankRunnable?.let {
+            plankHandler.removeCallbacks(it)
+            plankRunnable = null
+        }
     }
 
     private fun exerciseSitups(firstPersonLandmarks: MutableList<NormalizedLandmark>)
@@ -1096,7 +1165,18 @@ class ExerciseActivity : AppCompatActivity() {
                 readyForCobra = true
                 // Reset timer reference to ensure fresh timing when moving up.
                 lastValidTime = 0L
+                soundManager.playDownSound()
+                // Reset the handler whenever activity is detected
+                lastConditionExecutionTime = System.currentTimeMillis()
+                scope.launch {
+                    delayedNoActivitySound()
+                }
             } else if (isCobraPose && readyForCobra) {
+                // Reset the handler whenever activity is detected
+                lastConditionExecutionTime = System.currentTimeMillis()
+                scope.launch {
+                    delayedNoActivitySound()
+                }
                 // User is in Cobra (up) pose and had previously been down.
                 if (Pose != "Cobra pose") {
                     Pose = "Cobra pose"
@@ -1111,8 +1191,10 @@ class ExerciseActivity : AppCompatActivity() {
                         lastValidTime += secondsPassed * 1000
 
                         // If 60 seconds of valid Cobra pose are accumulated, complete a set.
-                        if (cobraSecondsElapsed >= 60) {
+                        if (cobraSecondsElapsed >= 5) {
                             cobraSetCount++
+                            soundManager.playCompleteSound()
+
                             runOnUiThread {
                                 Toast.makeText(this@ExerciseActivity,
                                     "Set $cobraSetCount complete", Toast.LENGTH_SHORT).show()
@@ -1149,41 +1231,6 @@ class ExerciseActivity : AppCompatActivity() {
             }
         }
     }
-
-//    private fun startCobraTimer() {
-//        if (isCobraTimerRunning) return
-//
-//        isCobraTimerRunning = true
-//        cobraTimer = object : CountDownTimer(Long.MAX_VALUE, 1000) {
-//            override fun onTick(millisUntilFinished: Long) {
-//                cobraSecondsElapsed++
-//                if (cobraSecondsElapsed >= 60) {
-//                    // Complete the set.
-//                    cobraSetCount++
-//                    pauseCobraTimer()
-//                    runOnUiThread {
-//                        Toast.makeText(this@ExerciseActivity, "Set $cobraSetCount complete", Toast.LENGTH_SHORT).show()
-//                    }
-//                    // Reset seconds counter for the next set.
-//                    cobraSecondsElapsed = 0
-//                }
-//            }
-//            override fun onFinish() {}
-//        }.start()
-//    }
-//
-//    private fun pauseCobraTimer() {
-//        cobraTimer?.cancel()
-//        isCobraTimerRunning = false
-//    }
-//
-//    private fun stopCobraTimer() {
-//        cobraTimer?.cancel()
-//        cobraSecondsElapsed = 0
-//        isCobraTimerRunning = false
-//    }
-
-
 
     private fun exerciseRelievingPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
         // Extract head-related landmarks.
@@ -1267,11 +1314,17 @@ class ExerciseActivity : AppCompatActivity() {
                     lastRelievingTime = currentTime
                 }
             } else {
+                soundManager.playDownSound()
                 isRelievingPoseActive = false
                 relievingPoseHoldTime = 0L
                 lastRelievingTime = 0L
                 if (currentPose == "Relieving pose") {
                     currentPose = "Not Relieving pose"
+                }
+                // Reset the handler whenever activity is detected
+                lastConditionExecutionTime = System.currentTimeMillis()
+                scope.launch {
+                    delayedNoActivitySound()
                 }
             }
 
@@ -1338,6 +1391,47 @@ class ExerciseActivity : AppCompatActivity() {
             // Overall, tree pose is detected if either variant is present and the arms are raised.
             val isTreePose = (isLeftTreePose || isRightTreePose) && armsRaised
 
+            val currentTime = System.currentTimeMillis()
+
+            // Simplified set logic.
+            if (isTreePose) {
+                // If this is the first valid frame, start the timer.
+                if (lastValidTime == 0L) {
+                    lastValidTime = currentTime
+                } else {
+                    // Accumulate the time difference.
+                    val elapsed = currentTime - lastValidTime
+                    holdTime += elapsed
+                    lastValidTime = currentTime
+
+                    // Check if the target hold time is reached.
+                    if (holdTime >= targetHoldTime) {
+                        setCount++
+                        soundManager.playCompleteSound()
+                        runOnUiThread {
+                            Toast.makeText(this@ExerciseActivity,
+                                "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                        }
+
+                        if (setCount >= targetSetCount) {
+                            runOnUiThread {
+                                Toast.makeText(this@ExerciseActivity,
+                                    "Exercise completed", Toast.LENGTH_SHORT).show()
+                            }
+                            endExercise()
+                        } else {
+                            // Reset hold time for the next set.
+                            holdTime = 0L
+                            lastValidTime = 0L
+                        }
+                    }
+                }
+            } else {
+                // Reset the timer if the pose is lost.
+                holdTime = 0L
+                lastValidTime = 0L
+            }
+            
             // Update pose state and trigger sound feedback.
             if (isTreePose) {
                 if (currentPose != "Tree Pose") {
@@ -1348,11 +1442,17 @@ class ExerciseActivity : AppCompatActivity() {
                 if (currentPose == "Tree Pose") {
                     currentPose = "Not Tree Pose"
                 }
+                soundManager.playDownSound()
+// Reset the handler whenever activity is detected
+                lastConditionExecutionTime = System.currentTimeMillis()
+                scope.launch {
+                    delayedNoActivitySound()
+                }
             }
 
             runOnUiThread {
-                binding.stageTextView.text = "Pose: $currentPose"
-            }
+                binding.countTextView.text = "Time: ${holdTime}s"
+                binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"            }
         }
     }
 
@@ -1429,6 +1529,7 @@ class ExerciseActivity : AppCompatActivity() {
         var detectedPose: String? = null
 
         when (sunSalutationState) {
+
             0 -> { // Mountain Pose: Upright, arms at sides, nearly extended knees.
                 if (leftWrist.y() > leftShoulder.y() && rightWrist.y() > rightShoulder.y() &&
                     leftKneeAngle > 170 && rightKneeAngle > 170) {
@@ -1479,6 +1580,7 @@ class ExerciseActivity : AppCompatActivity() {
                     detectedPose = "Mountain Pose"
                 }
             }
+
         }
 
         // If the detected pose matches the expected pose for the current state, advance the sequence.
@@ -1487,15 +1589,22 @@ class ExerciseActivity : AppCompatActivity() {
             soundManager.playUpSound()  // Trigger a transition sound.
             // Advance state; wrap-around when the sequence completes.
             sunSalutationState = (sunSalutationState + 1) % sunSalutationPoses.size
+            // Reset the handler whenever activity is detected
+            lastConditionExecutionTime = System.currentTimeMillis()
+            scope.launch {
+                delayedNoActivitySound()
+            }
         }
+
 
         // Update the UI with the current Sun Salutation pose and state.
         runOnUiThread {
-            binding.stageTextView.text = "Sun Salutation: ${sunSalutationPoses[sunSalutationState]}"
-            binding.countTextView.text = "Current Pose: $currentSunPose"
+            binding.countTextView.text = "Time: ${holdTime}s"
+            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"
         }
     }
 
+    // In your exercise function (example shown for Chair Pose)
     private fun exerciseChairPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
         // Extract essential landmarks.
         val leftShoulder = firstPersonLandmarks[11]
@@ -1518,7 +1627,7 @@ class ExerciseActivity : AppCompatActivity() {
             return
         }
 
-        // Compute knee angles for both legs using the hip, knee, and ankle landmarks.
+        // Calculate knee angles.
         val leftKneeAngle = calculateAngle(
             leftHip.x(), leftHip.y(),
             leftKnee.x(), leftKnee.y(),
@@ -1530,33 +1639,82 @@ class ExerciseActivity : AppCompatActivity() {
             rightAnkle.x(), rightAnkle.y()
         )
 
-        // Evaluate arm elevation:
-        // In normalized coordinates, a lower y-value indicates a higher position.
+        // Evaluate if arms are raised (lower y means higher in normalized coordinates).
         val armsRaised = (leftWrist.y() < leftShoulder.y() && rightWrist.y() < rightShoulder.y())
 
-        // Chair Pose (Utkatasana) criteria:
-        // 1. Both knees must be significantly bent.
-        //    Here, a knee angle between 80° and 110° is considered valid.
-        // 2. Both arms must be raised overhead.
+        // Chair Pose criteria: both knees bent (angle between 80° and 110°) and arms raised.
         val validKneeAngles = (leftKneeAngle in 80.0..110.0) && (rightKneeAngle in 80.0..110.0)
         val isChairPose = validKneeAngles && armsRaised
 
-        // Update pose state and provide auditory feedback.
+        val currentTime = System.currentTimeMillis()
+
+        // Simplified set logic.
+        if (isChairPose) {
+            // If this is the first valid frame, start the timer.
+            if (lastValidTime == 0L) {
+                lastValidTime = currentTime
+            } else {
+                // Accumulate the time difference.
+                val elapsed = currentTime - lastValidTime
+                holdTime += elapsed
+                lastValidTime = currentTime
+
+                // Check if the target hold time is reached.
+                if (holdTime >= targetHoldTime) {
+                    setCount++
+                    soundManager.playCompleteSound()
+                    runOnUiThread {
+                        Toast.makeText(this@ExerciseActivity,
+                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                    }
+
+                    if (setCount >= targetSetCount) {
+                        runOnUiThread {
+                            Toast.makeText(this@ExerciseActivity,
+                                "Exercise completed", Toast.LENGTH_SHORT).show()
+                        }
+                        endExercise()
+                    } else {
+                        // Reset hold time for the next set.
+                        holdTime = 0L
+                        lastValidTime = 0L
+
+                    }
+                }
+            }
+        } else {
+            // Reset the timer if the pose is lost.
+            holdTime = 0L
+            lastValidTime = 0L
+            // Reset the handler whenever activity is detected
+            lastConditionExecutionTime = System.currentTimeMillis()
+            scope.launch {
+                delayedNoActivitySound()
+            }
+        }
+
+        // Provide auditory feedback for pose state.
         if (isChairPose) {
             if (currentPose != "Chair Pose") {
                 currentPose = "Chair Pose"
-                soundManager.playUpSound()  // Play Chair Pose sound cue.
+                soundManager.playUpSound()
             }
         } else {
             if (currentPose == "Chair Pose") {
                 currentPose = "Not Chair Pose"
             }
+            soundManager.playDownSound()
+            // Reset the handler whenever activity is detected
+            lastConditionExecutionTime = System.currentTimeMillis()
+            scope.launch {
+                delayedNoActivitySound()
+            }
         }
 
         // Update the UI.
         runOnUiThread {
-            binding.stageTextView.text = "Pose: $currentPose"
-        }
+            binding.countTextView.text = "Time: ${holdTime}s"
+            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"        }
     }
 
     //Normal Pose
@@ -1605,6 +1763,47 @@ class ExerciseActivity : AppCompatActivity() {
         // Determine if the Mountain Pose is valid.
         val isMountainPose = kneesStraight && armsRelaxed
 
+        val currentTime = System.currentTimeMillis()
+
+        // Simplified set logic.
+        if (isMountainPose) {
+            // If this is the first valid frame, start the timer.
+            if (lastValidTime == 0L) {
+                lastValidTime = currentTime
+            } else {
+                // Accumulate the time difference.
+                val elapsed = currentTime - lastValidTime
+                holdTime += elapsed
+                lastValidTime = currentTime
+
+                // Check if the target hold time is reached.
+                if (holdTime >= targetHoldTime) {
+                    setCount++
+                    soundManager.playCompleteSound()
+                    runOnUiThread {
+                        Toast.makeText(this@ExerciseActivity,
+                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                    }
+
+                    if (setCount >= targetSetCount) {
+                        runOnUiThread {
+                            Toast.makeText(this@ExerciseActivity,
+                                "Exercise completed", Toast.LENGTH_SHORT).show()
+                        }
+                        endExercise()
+                    } else {
+                        // Reset hold time for the next set.
+                        holdTime = 0L
+                        lastValidTime = 0L
+                    }
+                }
+            }
+        } else {
+            // Reset the timer if the pose is lost.
+            holdTime = 0L
+            lastValidTime = 0L
+        }
+
         if (isMountainPose) {
             if (currentPose != "Mountain Pose") {
                 currentPose = "Mountain Pose"
@@ -1614,10 +1813,17 @@ class ExerciseActivity : AppCompatActivity() {
             if (currentPose == "Mountain Pose") {
                 currentPose = "Not Mountain Pose"
             }
+            soundManager.playDownSound()
+            // Reset the handler whenever activity is detected
+            lastConditionExecutionTime = System.currentTimeMillis()
+            scope.launch {
+                delayedNoActivitySound()
+            }
         }
 
         runOnUiThread {
-            binding.stageTextView.text = "Pose: $currentPose"
+            binding.countTextView.text = "Time: ${holdTime}s"
+            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"
         }
     }
 
@@ -1673,6 +1879,47 @@ class ExerciseActivity : AppCompatActivity() {
         // Combine the conditions to decide if the practitioner is in Easy Pose.
         val isEasyPose = kneesFlexed && anklesClose && shouldersAligned
 
+        val currentTime = System.currentTimeMillis()
+
+        // Simplified set logic.
+        if (isEasyPose) {
+            // If this is the first valid frame, start the timer.
+            if (lastValidTime == 0L) {
+                lastValidTime = currentTime
+            } else {
+                // Accumulate the time difference.
+                val elapsed = currentTime - lastValidTime
+                holdTime += elapsed
+                lastValidTime = currentTime
+
+                // Check if the target hold time is reached.
+                if (holdTime >= targetHoldTime) {
+                    setCount++
+                    soundManager.playCompleteSound()
+                    runOnUiThread {
+                        Toast.makeText(this@ExerciseActivity,
+                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                    }
+
+                    if (setCount >= targetSetCount) {
+                        runOnUiThread {
+                            Toast.makeText(this@ExerciseActivity,
+                                "Exercise completed", Toast.LENGTH_SHORT).show()
+                        }
+                        endExercise()
+                    } else {
+                        // Reset hold time for the next set.
+                        holdTime = 0L
+                        lastValidTime = 0L
+                    }
+                }
+            }
+        } else {
+            // Reset the timer if the pose is lost.
+            holdTime = 0L
+            lastValidTime = 0L
+        }
+
         if (isEasyPose) {
             if (currentPose != "Easy Pose") {
                 currentPose = "Easy Pose"
@@ -1682,11 +1929,17 @@ class ExerciseActivity : AppCompatActivity() {
             if (currentPose == "Easy Pose") {
                 currentPose = "Not Easy Pose"
             }
+            soundManager.playDownSound()
+            // Reset the handler whenever activity is detected
+            lastConditionExecutionTime = System.currentTimeMillis()
+            scope.launch {
+                delayedNoActivitySound()
+            }
         }
 
         runOnUiThread {
-            binding.stageTextView.text = "Pose: $currentPose"
-        }
+            binding.countTextView.text = "Time: ${holdTime}s"
+            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"        }
     }
 
     private fun exerciseBoatPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
@@ -1758,6 +2011,48 @@ class ExerciseActivity : AppCompatActivity() {
         // Combine the criteria to determine Boat Pose.
         val isBoatPose = trunkInclined && legsLifted && legsExtended && armsExtended
 
+
+        val currentTime = System.currentTimeMillis()
+
+        // Simplified set logic.
+        if (isBoatPose) {
+            // If this is the first valid frame, start the timer.
+            if (lastValidTime == 0L) {
+                lastValidTime = currentTime
+            } else {
+                // Accumulate the time difference.
+                val elapsed = currentTime - lastValidTime
+                holdTime += elapsed
+                lastValidTime = currentTime
+
+                // Check if the target hold time is reached.
+                if (holdTime >= targetHoldTime) {
+                    setCount++
+                    soundManager.playCompleteSound()
+                    runOnUiThread {
+                        Toast.makeText(this@ExerciseActivity,
+                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                    }
+
+                    if (setCount >= targetSetCount) {
+                        runOnUiThread {
+                            Toast.makeText(this@ExerciseActivity,
+                                "Exercise completed", Toast.LENGTH_SHORT).show()
+                        }
+                        endExercise()
+                    } else {
+                        // Reset hold time for the next set.
+                        holdTime = 0L
+                        lastValidTime = 0L
+                    }
+                }
+            }
+        } else {
+            // Reset the timer if the pose is lost.
+            holdTime = 0L
+            lastValidTime = 0L
+        }
+
         // Update pose state and trigger auditory feedback.
         if (isBoatPose) {
             if (currentPose != "Boat Pose") {
@@ -1768,11 +2063,18 @@ class ExerciseActivity : AppCompatActivity() {
             if (currentPose == "Boat Pose") {
                 currentPose = "Not Boat Pose"
             }
+            soundManager.playDownSound()
+            // Reset the handler whenever activity is detected
+            lastConditionExecutionTime = System.currentTimeMillis()
+            scope.launch {
+                delayedNoActivitySound()
+            }
+
         }
 
         runOnUiThread {
-            binding.stageTextView.text = "Pose: $currentPose"
-        }
+            binding.countTextView.text = "Time: ${holdTime}s"
+            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"        }
     }
 
     private fun exerciseCatCowPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
@@ -1802,6 +2104,8 @@ class ExerciseActivity : AppCompatActivity() {
             // If not on all fours, do not update Cat-Cow status.
             if (currentPose == "Cat Pose" || currentPose == "Cow Pose") {
                 currentPose = "Not Cat-Cow Pose"
+                soundManager.playDownSound()
+
             }
             runOnUiThread {
                 binding.stageTextView.text = "Pose: $currentPose"
@@ -1816,12 +2120,56 @@ class ExerciseActivity : AppCompatActivity() {
         // Define a margin to reduce sensitivity.
         val margin = 0.05
 
+        var cowPose = nose.y() < midShoulderY - margin
+
+
+        val currentTime = System.currentTimeMillis()
+
+        // Simplified set logic.
+        if (cowPose) {
+            // If this is the first valid frame, start the timer.
+            if (lastValidTime == 0L) {
+                lastValidTime = currentTime
+            } else {
+                // Accumulate the time difference.
+                val elapsed = currentTime - lastValidTime
+                holdTime += elapsed
+                lastValidTime = currentTime
+
+                // Check if the target hold time is reached.
+                if (holdTime >= targetHoldTime) {
+                    setCount++
+                    soundManager.playCompleteSound()
+                    runOnUiThread {
+                        Toast.makeText(this@ExerciseActivity,
+                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                    }
+
+                    if (setCount >= targetSetCount) {
+                        runOnUiThread {
+                            Toast.makeText(this@ExerciseActivity,
+                                "Exercise completed", Toast.LENGTH_SHORT).show()
+                        }
+                        endExercise()
+                    } else {
+                        // Reset hold time for the next set.
+                        holdTime = 0L
+                        lastValidTime = 0L
+                    }
+                }
+            }
+        } else {
+            // Reset the timer if the pose is lost.
+            holdTime = 0L
+            lastValidTime = 0L
+        }
+
         // Determine pose phase based on head (nose) position relative to mid-shoulder.
-        if (nose.y() < midShoulderY - margin) {
+        if (cowPose) {
             // In Cow Pose, the head is lifted (nose is higher than the shoulder line).
             if (currentPose != "Cow Pose") {
                 currentPose = "Cow Pose"
-                //soundManager.playCowPoseSound()
+                soundManager.playUpSound()
             }
         } else if (nose.y() > midShoulderY + margin) {
             // In Cat Pose, the head is tucked (nose is lower than the shoulder line).
@@ -1835,13 +2183,21 @@ class ExerciseActivity : AppCompatActivity() {
             // When the difference is minimal, maintain the current state.
             if (currentPose != "Neutral Cat-Cow") {
                 currentPose = "Neutral Cat-Cow"
+                soundManager.playDownSound()
+
+
+            }
+            // Reset the handler whenever activity is detected
+            lastConditionExecutionTime = System.currentTimeMillis()
+            scope.launch {
+                delayedNoActivitySound()
             }
         }
 
         // Update the UI.
         runOnUiThread {
-            binding.stageTextView.text = "Pose: $currentPose"
-        }
+            binding.countTextView.text = "Time: ${holdTime}s"
+            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"        }
     }
 
     private fun exerciseBowPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
@@ -1902,6 +2258,48 @@ class ExerciseActivity : AppCompatActivity() {
         // Combine all conditions to detect Bow Pose.
         val isBowPose = handsGraspingAnkles && kneesBent && chestLifted
 
+
+        val currentTime = System.currentTimeMillis()
+
+        // Simplified set logic.
+        if (isBowPose) {
+            // If this is the first valid frame, start the timer.
+            if (lastValidTime == 0L) {
+                lastValidTime = currentTime
+            } else {
+                // Accumulate the time difference.
+                val elapsed = currentTime - lastValidTime
+                holdTime += elapsed
+                lastValidTime = currentTime
+
+                // Check if the target hold time is reached.
+                if (holdTime >= targetHoldTime) {
+                    setCount++
+                    soundManager.playCompleteSound()
+                    runOnUiThread {
+                        Toast.makeText(this@ExerciseActivity,
+                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                    }
+
+                    if (setCount >= targetSetCount) {
+                        runOnUiThread {
+                            Toast.makeText(this@ExerciseActivity,
+                                "Exercise completed", Toast.LENGTH_SHORT).show()
+                        }
+                        endExercise()
+                    } else {
+                        // Reset hold time for the next set.
+                        holdTime = 0L
+                        lastValidTime = 0L
+                    }
+                }
+            }
+        } else {
+            // Reset the timer if the pose is lost.
+            holdTime = 0L
+            lastValidTime = 0L
+        }
+
         if (isBowPose) {
             if (currentPose != "Bow Pose") {
                 currentPose = "Bow Pose"
@@ -1913,11 +2311,18 @@ class ExerciseActivity : AppCompatActivity() {
             if (currentPose == "Bow Pose") {
                 currentPose = "Not Bow Pose"
             }
+            soundManager.playDownSound()
+            // Reset the handler whenever activity is detected
+            lastConditionExecutionTime = System.currentTimeMillis()
+            scope.launch {
+                delayedNoActivitySound()
+            }
+
         }
 
         runOnUiThread {
-            binding.stageTextView.text = "Pose: $currentPose"
-        }
+            binding.countTextView.text = "Time: ${holdTime}s"
+            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"        }
     }
 
     //Overweight exercises
@@ -1988,6 +2393,48 @@ class ExerciseActivity : AppCompatActivity() {
 
         val isDownwardFacingDog = armsExtended && legsExtended && hipsLifted
 
+
+        val currentTime = System.currentTimeMillis()
+
+        // Simplified set logic.
+        if (isDownwardFacingDog) {
+            // If this is the first valid frame, start the timer.
+            if (lastValidTime == 0L) {
+                lastValidTime = currentTime
+            } else {
+                // Accumulate the time difference.
+                val elapsed = currentTime - lastValidTime
+                holdTime += elapsed
+                lastValidTime = currentTime
+
+                // Check if the target hold time is reached.
+                if (holdTime >= targetHoldTime) {
+                    setCount++
+                    soundManager.playCompleteSound()
+                    runOnUiThread {
+                        Toast.makeText(this@ExerciseActivity,
+                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                    }
+
+                    if (setCount >= targetSetCount) {
+                        runOnUiThread {
+                            Toast.makeText(this@ExerciseActivity,
+                                "Exercise completed", Toast.LENGTH_SHORT).show()
+                        }
+                        endExercise()
+                    } else {
+                        // Reset hold time for the next set.
+                        holdTime = 0L
+                        lastValidTime = 0L
+                    }
+                }
+            }
+        } else {
+            // Reset the timer if the pose is lost.
+            holdTime = 0L
+            lastValidTime = 0L
+        }
+
         if (isDownwardFacingDog) {
             if (currentPose != "Downward-Facing Dog") {
                 currentPose = "Downward-Facing Dog"
@@ -1998,11 +2445,18 @@ class ExerciseActivity : AppCompatActivity() {
             if (currentPose == "Downward-Facing Dog") {
                 currentPose = "Not Downward-Facing Dog"
             }
+            soundManager.playDownSound()
+            // Reset the handler whenever activity is detected
+            lastConditionExecutionTime = System.currentTimeMillis()
+            scope.launch {
+                delayedNoActivitySound()
+            }
+
         }
 
         runOnUiThread {
-            binding.stageTextView.text = "Pose: $currentPose"
-        }
+            binding.countTextView.text = "Time: ${holdTime}s"
+            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"        }
     }
 
     private fun exerciseTrianglePose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
@@ -2055,6 +2509,48 @@ class ExerciseActivity : AppCompatActivity() {
         // Combine conditions to decide if the practitioner is in Triangle Pose.
         val isTrianglePose = torsoTiltValid && armCondition && wideStance
 
+
+        val currentTime = System.currentTimeMillis()
+
+        // Simplified set logic.
+        if (isTrianglePose) {
+            // If this is the first valid frame, start the timer.
+            if (lastValidTime == 0L) {
+                lastValidTime = currentTime
+            } else {
+                // Accumulate the time difference.
+                val elapsed = currentTime - lastValidTime
+                holdTime += elapsed
+                lastValidTime = currentTime
+
+                // Check if the target hold time is reached.
+                if (holdTime >= targetHoldTime) {
+                    setCount++
+                    soundManager.playCompleteSound()
+                    runOnUiThread {
+                        Toast.makeText(this@ExerciseActivity,
+                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                    }
+
+                    if (setCount >= targetSetCount) {
+                        runOnUiThread {
+                            Toast.makeText(this@ExerciseActivity,
+                                "Exercise completed", Toast.LENGTH_SHORT).show()
+                        }
+                        endExercise()
+                    } else {
+                        // Reset hold time for the next set.
+                        holdTime = 0L
+                        lastValidTime = 0L
+                    }
+                }
+            }
+        } else {
+            // Reset the timer if the pose is lost.
+            holdTime = 0L
+            lastValidTime = 0L
+        }
+
         if (isTrianglePose) {
             if (currentPose != "Triangle Pose") {
                 currentPose = "Triangle Pose"
@@ -2066,11 +2562,17 @@ class ExerciseActivity : AppCompatActivity() {
             if (currentPose == "Triangle Pose") {
                 currentPose = "Not Triangle Pose"
             }
+            soundManager.playDownSound()
+            // Reset the handler whenever activity is detected
+            lastConditionExecutionTime = System.currentTimeMillis()
+            scope.launch {
+                delayedNoActivitySound()
+            }
         }
 
         runOnUiThread {
-            binding.stageTextView.text = "Pose: $currentPose"
-        }
+            binding.countTextView.text = "Time: ${holdTime}s"
+            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"        }
     }
 
     private fun exerciseWarrior2Pose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
@@ -2136,6 +2638,46 @@ class ExerciseActivity : AppCompatActivity() {
         // Combine all conditions to determine if the pose is Warrior 2.
         val isWarrior2Pose = kneeCondition && armCondition && wideStance && torsoUpright
 
+        val currentTime = System.currentTimeMillis()
+
+        // Simplified set logic.
+        if (isWarrior2Pose) {
+            // If this is the first valid frame, start the timer.
+            if (lastValidTime == 0L) {
+                lastValidTime = currentTime
+            } else {
+                // Accumulate the time difference.
+                val elapsed = currentTime - lastValidTime
+                holdTime += elapsed
+                lastValidTime = currentTime
+
+                // Check if the target hold time is reached.
+                if (holdTime >= targetHoldTime) {
+                    setCount++
+                    soundManager.playCompleteSound()
+                    runOnUiThread {
+                        Toast.makeText(this@ExerciseActivity,
+                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                    }
+
+                    if (setCount >= targetSetCount) {
+                        runOnUiThread {
+                            Toast.makeText(this@ExerciseActivity,
+                                "Exercise completed", Toast.LENGTH_SHORT).show()
+                        }
+                        endExercise()
+                    } else {
+                        // Reset hold time for the next set.
+                        holdTime = 0L
+                        lastValidTime = 0L
+                    }
+                }
+            }
+        } else {
+            // Reset the timer if the pose is lost.
+            holdTime = 0L
+            lastValidTime = 0L
+        }
         if (isWarrior2Pose) {
             if (currentPose != "Warrior 2") {
                 currentPose = "Warrior 2"
@@ -2147,11 +2689,18 @@ class ExerciseActivity : AppCompatActivity() {
             if (currentPose == "Warrior 2") {
                 currentPose = "Not Warrior 2"
             }
+            soundManager.playDownSound()
+            // Reset the handler whenever activity is detected
+            lastConditionExecutionTime = System.currentTimeMillis()
+            scope.launch {
+                delayedNoActivitySound()
+            }
+
         }
 
         runOnUiThread {
-            binding.stageTextView.text = "Pose: $currentPose"
-        }
+            binding.countTextView.text = "Time: ${holdTime}s"
+            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"        }
     }
     private fun exerciseChildPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
         // Extract required landmarks.
@@ -2208,6 +2757,46 @@ class ExerciseActivity : AppCompatActivity() {
         // Combine all conditions to decide if the practitioner is in Balasana.
         val isBalasana = torsoTiltValid && headLowered && kneesBent
 
+        val currentTime = System.currentTimeMillis()
+
+        // Simplified set logic.
+        if (isBalasana) {
+            // If this is the first valid frame, start the timer.
+            if (lastValidTime == 0L) {
+                lastValidTime = currentTime
+            } else {
+                // Accumulate the time difference.
+                val elapsed = currentTime - lastValidTime
+                holdTime += elapsed
+                lastValidTime = currentTime
+
+                // Check if the target hold time is reached.
+                if (holdTime >= targetHoldTime) {
+                    setCount++
+                    soundManager.playCompleteSound()
+                    runOnUiThread {
+                        Toast.makeText(this@ExerciseActivity,
+                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                    }
+
+                    if (setCount >= targetSetCount) {
+                        runOnUiThread {
+                            Toast.makeText(this@ExerciseActivity,
+                                "Exercise completed", Toast.LENGTH_SHORT).show()
+                        }
+                        endExercise()
+                    } else {
+                        // Reset hold time for the next set.
+                        holdTime = 0L
+                        lastValidTime = 0L
+                    }
+                }
+            }
+        } else {
+            // Reset the timer if the pose is lost.
+            holdTime = 0L
+            lastValidTime = 0L
+        }
         if (isBalasana) {
             if (currentPose != "Balasana") {
                 currentPose = "Balasana"
@@ -2219,11 +2808,17 @@ class ExerciseActivity : AppCompatActivity() {
             if (currentPose == "Balasana") {
                 currentPose = "Not Balasana"
             }
+            soundManager.playDownSound()
+            // Reset the handler whenever activity is detected
+            lastConditionExecutionTime = System.currentTimeMillis()
+            scope.launch {
+                delayedNoActivitySound()
+            }
         }
 
         runOnUiThread {
-            binding.stageTextView.text = "Pose: $currentPose"
-        }
+            binding.countTextView.text = "Time: ${holdTime}s"
+            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"        }
     }
 
     private fun endExercise() {

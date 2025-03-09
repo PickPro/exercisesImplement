@@ -3,47 +3,48 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-
-    <!--  PreviewView for camera preview  -->
+    <!-- Camera Preview -->
     <androidx.camera.view.PreviewView
         android:id="@+id/previewCam"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-
+    <!-- Updated Layout for Landscape -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="top|center_horizontal"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:layout_gravity="top|start"
+    android:orientation="vertical"
+    android:padding="16dp">
 
-        <TextView
-            android:id="@+id/exercise_name"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:layout_gravity="center"
-            android:padding="0dp"
-            android:text="Exercise name"
-            android:textColor="@color/yellow"
-            android:textSize="@dimen/_22sdp"
-            android:textStyle="normal" />
+    <TextView
+        android:id="@+id/exercise_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:layout_gravity="center"
+        android:padding="0dp"
+        android:text="Exercise name"
+        android:textColor="@color/yellow"
+        android:textSize="@dimen/_22sdp"
+        android:textStyle="normal" />
 
-        <TextView
-            android:id="@+id/countTextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Reps: 0"
-            android:textColor="#FFFFFF"
-            android:textSize="24sp" />
+    <TextView
+        android:id="@+id/countTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Reps: 0"
+        android:textColor="#FFFFFF"
+        android:textSize="24sp"
+        android:layout_gravity="start" /> <!-- Move left -->
 
-        <TextView
-            android:id="@+id/stageTextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Stage: None"
-            android:textColor="#FFFFFF"
-            android:textSize="24sp" />
-    </LinearLayout>
-</FrameLayout>
+    <TextView
+        android:id="@+id/stageTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Stage: None"
+        android:textColor="#FFFFFF"
+        android:textSize="24sp"
+        android:layout_gravity="start" /> <!-- Move left -->
+</LinearLayout>
+    </FrameLayout>
