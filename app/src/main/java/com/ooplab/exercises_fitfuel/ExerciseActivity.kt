@@ -51,6 +51,9 @@ class ExerciseActivity : AppCompatActivity() {
 
 
     private var lastConditionExecutionTime: Long = 0
+    private var angle1: Long = 0
+    private var angle2: Long = 0
+
     var inKickbackPosition = false
 
     // Declares a variable for the camera executor service.
@@ -64,6 +67,8 @@ class ExerciseActivity : AppCompatActivity() {
 
 
     var count = 0
+    private var count2 = 0
+
     var stage = "Down"
     //Legraise variables
     var isAt90Degrees = false
@@ -82,14 +87,13 @@ class ExerciseActivity : AppCompatActivity() {
 
     //cobra exercise
     private var cobraSecondsElapsed = 0
-    private var cobraSetCount = 0
     private var readyForCobra = false
 
     //relieving pose
     private var relievingPoseHoldTime: Long = 0L
     private var lastRelievingTime: Long = 0L
     private var isRelievingPoseActive: Boolean = false
-    private var currentPose: String = "Not Relieving pose"
+    private var currentPose: String = "Pose"
 
     //sunSalutationState
     // State variable and pose sequence definition.
@@ -110,7 +114,8 @@ class ExerciseActivity : AppCompatActivity() {
     private var setCount = 0
     private var holdTime = 0L
     private var lastValidTime = 0L
-    private val targetHoldTime = 5000L  // 30 seconds per set (adjust as needed)
+    private var seconds = 0L
+    private val targetHoldTime = 3000L  // 30 seconds per set (adjust as needed)
     private val targetSetCount = 2       // Number of sets needed to complete the exercise
 
     // Create a coroutine scope for the activity
@@ -150,7 +155,8 @@ class ExerciseActivity : AppCompatActivity() {
         } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT) {
             binding.countTextView.gravity = Gravity.CENTER
             binding.stageTextView.gravity = Gravity.CENTER
-        }
+//
+               }
     }
 
 
@@ -312,86 +318,108 @@ class ExerciseActivity : AppCompatActivity() {
         }
 
     }
+    private fun exerciseKickBack(firstPersonLandmarks: MutableList<NormalizedLandmark>)
+    {
 
-    private fun exerciseKickBack(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
-        // Extract required landmarks for the kicking leg.
-        val leftShoulder = firstPersonLandmarks[11]
-        val leftHip = firstPersonLandmarks[23]
-        val leftKnee = firstPersonLandmarks[25]
-        val leftAnkle = firstPersonLandmarks[27]
+        // Access the first set of landmarks (for the first detected person)
+        val landmarks = firstPersonLandmarks
 
-        // Ensure all required landmarks are available.
-        if (leftShoulder == null || leftHip == null || leftKnee == null || leftAnkle == null) {
-            return
-        }
+        // Define points for shoulders, hips, elbows, knees, and ankles
+        val leftShoulder = landmarks[11]
+        val rightShoulder = landmarks[12]
+        val leftHip = landmarks[23]
+        val rightHip = landmarks[24]
+        val leftElbow = landmarks[13]
+        val rightElbow = landmarks[14]
+        val leftKnee = landmarks[25]
+        val rightKnee = landmarks[26]
+        val leftAnkle = landmarks[27]
+        val rightAnkle = landmarks[28]
 
-        // Calculate angles for the left leg:
-        // 1. Hip angle: formed by left shoulder, left hip, and left knee.
-        val leftHipAngle = calculateAngle(
-            leftShoulder.x(), leftShoulder.y(),
-            leftHip.x(), leftHip.y(),
-            leftKnee.x(), leftKnee.y()
-        )
 
-        // 2. Knee angle: formed by left hip, left knee, and left ankle.
-        val leftKneeAngle = calculateAngle(
-            leftHip.x(), leftHip.y(),
-            leftKnee.x(), leftKnee.y(),
-            leftAnkle.x(), leftAnkle.y()
-        )
+// Check if all necessary landmarks are detected
+        if (leftShoulder != null && rightShoulder != null && leftHip != null && rightHip != null &&
+            leftElbow != null && rightElbow != null && leftKnee != null && rightKnee != null &&
+            leftAnkle != null && rightAnkle != null
+        ) {
 
-        // Define thresholds:
-        // The left hip angle should be greater than 110° to indicate sufficient hip extension.
-        val hipExtensionThreshold = 110.0
+            // Calculate angles for kickback position
+            val angleKneeLeft = calculateAngle360(
+                leftHip.x(), leftHip.y(),
+                leftKnee.x(), leftKnee.y(),
+                leftAnkle.x(), leftAnkle.y()
+            )
+            val angleKneeRight = calculateAngle360(
+                rightHip.x(), rightHip.y(),
+                rightKnee.x(), rightKnee.y(),
+                rightAnkle.x(), rightAnkle.y()
+            )
 
-        // For a proper kick, the knee should remain bent:
-        // For example, a knee angle between 60° and 130° is considered correct.
-        val kneeAngleMin = 60.0
-        val kneeAngleMax = 130.0
 
-        val isHipExtended = leftHipAngle > hipExtensionThreshold
-        val isKneeBentCorrectly = leftKneeAngle in kneeAngleMin..kneeAngleMax
-//condition to complete the exercise
-        if (count >= 4) {
-            runOnUiThread {
-                Toast.makeText(
-                    this@ExerciseActivity,
-                    "Exercise completed",
-                    Toast.LENGTH_SHORT
-                ).show()
+            val angleHipRight = calculateAngle360(
+                rightShoulder.x(), rightShoulder.y(),
+                rightHip.x(), rightHip.y(),
+                rightKnee.x(), rightKnee.y()
+            )
+            val angleHipLeft = calculateAngle360(
+                leftShoulder.x(), leftShoulder.y(),
+                leftHip.x(), leftHip.y(),
+                leftKnee.x(), leftKnee.y(),
+            )
+
+
+            // Define conditions for kickback position in the range 130 to 150 degrees
+            val kickbackConditionLeft =
+                (angleKneeLeft > 130.0 && angleKneeLeft < 191.0)
+
+            val doggyPosition = angleKneeLeft > 50 && angleKneeLeft < 110
+            val kickbackConditionRight =
+                (angleKneeRight > 210.0 && angleKneeRight < 270.0)
+            val hipCondition = (angleHipLeft > 120.0 && angleHipLeft < 186.0)
+            //condition to complete the exercise
+            if (count >= 5) {
+                runOnUiThread {
+                    Toast.makeText(
+                        this@ExerciseActivity,
+                        "Exercise completed",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                endExercise()
             }
-            endExercise()
-        }
-        // Only count as a valid kickback if both conditions are met.
-        val kickbackDetected = isHipExtended && isKneeBentCorrectly
 
-        if (kickbackDetected) {
-            if (currentPose != "Kickback Exercise") {
-                currentPose = "Kickback Exercise"
-                soundManager.playUpSound()  // Trigger auditory feedback.
-                count++
-// Reset the handler whenever activity is detected
+// Check if both kickback conditions are met and update the state
+            if (kickbackConditionLeft && hipCondition) {
+                // Set flag indicating that both legs are in the kickback position
+                inKickbackPosition = true
+                soundManager.playUpSound()
+                // Reset the handler whenever activity is detected
                 lastConditionExecutionTime = System.currentTimeMillis()
                 scope.launch {
                     delayedNoActivitySound()
                 }
-
-            }
-        } else {
-            if (currentPose == "Kickback Exercise") {
-                currentPose = "Not Kickback Exercise"
+            } else if (inKickbackPosition && doggyPosition) {
+                // Only increment count if transitioning from kickback position to normal position
+                count++
+                inKickbackPosition = false // Reset for the next rep cycle
                 soundManager.playDownSound()
+                // Reset the handler whenever activity is detected
+                lastConditionExecutionTime = System.currentTimeMillis()
+                scope.launch {
+                    delayedNoActivitySound()
+                }
             }
-            // Reset the handler whenever activity is detected
-            lastConditionExecutionTime = System.currentTimeMillis()
-            scope.launch {
-                delayedNoActivitySound()
+
+// Update TextViews on the main thread
+            runOnUiThread() {
+                binding. countTextView.text = "Reps: $count"
+                binding. stageTextView.text =
+                    if (inKickbackPosition) "In Kickback Position" else "Down"
+
             }
         }
 
-        runOnUiThread {
-            binding.stageTextView.text = "Pose: $currentPose"
-        }
+
     }
 
 
@@ -862,14 +890,14 @@ class ExerciseActivity : AppCompatActivity() {
 
             // Update UI elements (need to run on main thread)
             runOnUiThread {
-                val bothLegsDownCondition = ((angleLeftHip > 115 &&angleLeftHip<125) &&
-                        (angleRightHip > 115 &&angleRightHip<125)) && ((angleLeftKnee > 25 && angleLeftKnee<35) && (angleRightKnee > 25 && angleRightKnee<35))
+                val bothLegsDownCondition = ((angleLeftHip > 115 && angleLeftHip<135) ||
+                        (angleRightHip > 115 &&angleRightHip<135)) && ((angleLeftKnee > 25 && angleLeftKnee<55) || (angleRightKnee > 25 && angleRightKnee<55))
                 val bothLegsUpCondition =
-                    ((angleLeftHip > 174) &&
-                            (angleRightHip > 174)) && ((angleLeftKnee > 75 && angleLeftKnee<85) && (angleRightKnee > 75 && angleRightKnee<85))
+                    ((angleLeftHip > 169) ||
+                            (angleRightHip > 169)) && ((angleLeftKnee > 65 && angleLeftKnee<95) || (angleRightKnee > 65 && angleRightKnee<95))
 
                 //condition to complete the exercise
-                if (count >= 5) {
+                if (count2 >= 3) {
                     runOnUiThread {
                         Toast.makeText(
                             this@ExerciseActivity,
@@ -882,7 +910,23 @@ class ExerciseActivity : AppCompatActivity() {
 
                 // Check the stage and conditions for rep counting
 
-                if (bothLegsUpCondition && stage == "Hips Down") {
+                if (stage == "Hips Up" && bothLegsDownCondition) {
+                    val glutebridge = null
+                    Log.d(glutebridge, "Count incremented to $count")
+
+
+                    // When both legs go back to approximately 180 degrees from 90 degrees, increment rep count
+                    stage = "Hips Down"       // Reset stage to "Down" after counting
+                    count2++
+
+                    soundManager.playDownSound()
+//                    lastConditionExecutionTime = System.currentTimeMillis()
+//                    // Reset timer
+//                    scope.launch {
+//                        delayedNoActivitySound()
+//                    }
+                }
+                 else if (bothLegsUpCondition && stage == "Hips Down") {
                     // When both legs reach approximately 90 degrees, set stage to "Up"
                     stage = "Hips Up"
                     soundManager.playUpSound()
@@ -891,22 +935,12 @@ class ExerciseActivity : AppCompatActivity() {
                     scope.launch {
                         delayedNoActivitySound()
                     }
-                } else if (stage == "Hips Up" && bothLegsDownCondition) {
-                    // When both legs go back to approximately 180 degrees from 90 degrees, increment rep count
-                    count++
-                    stage = "Hips Down"       // Reset stage to "Down" after counting
-                    soundManager.playDownSound()
-                    lastConditionExecutionTime = System.currentTimeMillis()
-                    // Reset timer
-                    scope.launch {
-                        delayedNoActivitySound()
-                    }
                 }
 
                 // Update TextViews
-                binding.countTextView.text = "Reps: $count"
+                binding.countTextView.text = "Reps: $count2"
                 binding.stageTextView.text = "Position: $stage"
-            }
+           }
         }
 
     }
@@ -962,16 +996,16 @@ class ExerciseActivity : AppCompatActivity() {
             // Update UI elements (need to run on main thread)
             runOnUiThread {
                 val bothLegsDownCondition =
-                    ((angleLeftElbow >= 85 && angleLeftElbow <= 95) &&
-                        (angleRightElbow >= 85 && angleRightElbow <= 95)) && ((angleLeftHip > 174) &&
-                        (angleRightHip > 174))
+                    ((angleLeftElbow >= 65 && angleLeftElbow <= 115) ||
+                        (angleRightElbow >= 65 && angleRightElbow <= 115)) && ((angleLeftHip > 170) ||
+                        (angleRightHip > 170))
                 val bothLegsUpCondition =
-                    ((angleLeftElbow > 174) &&
-                            (angleRightElbow > 174)) && ((angleLeftHip > 174) &&
-                        (angleRightHip > 174))
+                    ((angleLeftElbow > 170) ||
+                            (angleRightElbow > 170)) && ((angleLeftHip > 170) ||
+                        (angleRightHip > 170))
 
                 //condition to complete the exercise
-                if (count >= 5) {
+                if (count >= 3) {
                     runOnUiThread {
                         Toast.makeText(
                             this@ExerciseActivity,
@@ -984,19 +1018,19 @@ class ExerciseActivity : AppCompatActivity() {
 
                 // Check the stage and conditions for rep counting
 
-                if (bothLegsUpCondition && stage == "Legs Down") {
+                if (bothLegsUpCondition && stage == "Down") {
                     // When both legs reach approximately 90 degrees, set stage to "Up"
-                    stage = "Legs Up"
+                    stage = "Up"
                     soundManager.playUpSound()
                     // Reset the handler whenever activity is detected
                     lastConditionExecutionTime = System.currentTimeMillis()
                     scope.launch {
                         delayedNoActivitySound()
                     }
-                } else if (isAt90Degrees && bothLegsDownCondition) {
+                } else if ( stage == "Up" && bothLegsDownCondition) {
                     // When both legs go back to approximately 180 degrees from 90 degrees, increment rep count
                     count++
-                    stage = "Legs Down"       // Reset stage to "Down" after counting
+                    stage = "Down"       // Reset stage to "Down" after counting
                     soundManager.playDownSound()
                     lastConditionExecutionTime = System.currentTimeMillis()
                     // Reset timer
@@ -1049,10 +1083,10 @@ class ExerciseActivity : AppCompatActivity() {
             // Update UI elements (need to run on main thread)
             runOnUiThread {
                 val bothLegsDownCondition =
-                    ((angleLeftElbow > 164) && (angleRightElbow > 164))
+                    ((angleLeftElbow > 160) && (angleRightElbow > 160))
 
                 val bothLegsUpCondition =
-                    ((angleLeftElbow > 29 && angleLeftElbow < 36) && (angleRightElbow > 29 && angleRightElbow < 36))
+                    ((angleLeftElbow > 29 && angleLeftElbow < 56) && (angleRightElbow > 29 && angleRightElbow < 56))
 
                 //condition to complete the exercise
                 if (count >= 5) {
@@ -1068,19 +1102,19 @@ class ExerciseActivity : AppCompatActivity() {
 
                 // Check the stage and conditions for rep counting
 
-                if (bothLegsUpCondition && stage == "Legs Down") {
+                if (bothLegsUpCondition && stage == "Down") {
                     // When both legs reach approximately 90 degrees, set stage to "Up"
-                    stage = "Legs Up"
+                    stage = "Up"
                     soundManager.playUpSound()
                     // Reset the handler whenever activity is detected
                     lastConditionExecutionTime = System.currentTimeMillis()
                     scope.launch {
                         delayedNoActivitySound()
                     }
-                } else if (isAt90Degrees && bothLegsDownCondition) {
+                } else if (stage == "Up" && bothLegsDownCondition) {
                     // When both legs go back to approximately 180 degrees from 90 degrees, increment rep count
                     count++
-                    stage = "Legs Down"       // Reset stage to "Down" after counting
+                    stage = "Down"       // Reset stage to "Down" after counting
                     soundManager.playDownSound()
                     lastConditionExecutionTime = System.currentTimeMillis()
                     // Reset timer
@@ -1146,13 +1180,12 @@ class ExerciseActivity : AppCompatActivity() {
 
             // Define the Cobra pose (up) condition.
             // Arms should be moderately bent and at least one hip must show an arch.
-            val isCobraPose = ((angleElbowLeft in 80.0..120.0) || (angleElbowRight in 80.0..120.0)) &&
+            val isCobraPose = ((angleElbowLeft in 80.0..180.0) || (angleElbowRight in 80.0..180.0)) &&
                     ((angleHipLeft < 150) || (angleHipRight < 150))
 
             // Define the Down position condition.
             // Arms nearly extended and the body flat.
-            val isDownPosition = (angleElbowLeft > 140.0 && angleElbowRight > 140.0) &&
-                    (angleHipLeft > 160.0 && angleHipRight > 160.0)
+            val isDownPosition = (angleHipLeft > 160.0 && angleHipRight > 160.0)
 
             val currentTime = System.currentTimeMillis()
 
@@ -1191,15 +1224,15 @@ class ExerciseActivity : AppCompatActivity() {
                         lastValidTime += secondsPassed * 1000
 
                         // If 60 seconds of valid Cobra pose are accumulated, complete a set.
-                        if (cobraSecondsElapsed >= 5) {
-                            cobraSetCount++
+                        if (cobraSecondsElapsed >= 3) {
+                            setCount++
                             soundManager.playCompleteSound()
 
                             runOnUiThread {
                                 Toast.makeText(this@ExerciseActivity,
-                                    "Set $cobraSetCount complete", Toast.LENGTH_SHORT).show()
+                                    "Set $setCount complete", Toast.LENGTH_SHORT).show()
                             }
-                            if (cobraSetCount >= 2) {
+                            if (setCount >= 2) {
                                 runOnUiThread {
                                     Toast.makeText(this@ExerciseActivity,
                                         "Exercise completed", Toast.LENGTH_SHORT).show()
@@ -1227,7 +1260,8 @@ class ExerciseActivity : AppCompatActivity() {
             // Update UI.
             runOnUiThread {
                 binding.countTextView.text = "Time: $cobraSecondsElapsed s"
-                binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2 | Pose: $Pose"
+                binding.stageTextView.text = "Set: ${setCount} "
+
             }
         }
     }
@@ -1287,20 +1321,53 @@ class ExerciseActivity : AppCompatActivity() {
             val midShoulderY = (leftShoulder.y() + rightShoulder.y()) / 2.0
 
             // Define a margin for head lowering.
-            val headMargin = 0.05
 
-            // Head is considered lowered if eyes are below shoulders by the margin.
-            val isHeadDown = averageEyeY > (midShoulderY + headMargin)
 
             // Relieving pose criteria:
             // 1. Forward bend: at least one hip angle below 110°.
             // 2. Both arms extended: elbow angles above 150°.
             // 3. Head is lowered: as determined by eye position.
-            val isRelievingPose = ((angleHipLeft < 110) || (angleHipRight < 110)) &&
-                    (angleElbowLeft > 150 && angleElbowRight > 150) &&
-                    isHeadDown
-
+            val isRelievingPose = ((angleHipLeft < 50) || (angleHipRight < 50)) &&
+                    (angleElbowLeft < 130 || angleElbowRight < 130)
             val currentTime = System.currentTimeMillis()
+
+            if(isRelievingPose)
+            {
+                // If this is the first valid frame, start the timer.
+                if (lastValidTime == 0L) {
+                    lastValidTime = currentTime
+                } else {
+                    // Accumulate the time difference.
+                    val elapsed = currentTime - lastValidTime
+                    holdTime += elapsed
+                    lastValidTime = currentTime
+
+                    // Check if the target hold time is reached.
+                    if (holdTime >= targetHoldTime) {
+                        setCount++
+                        soundManager.playCompleteSound()
+                        runOnUiThread {
+                            Toast.makeText(this@ExerciseActivity,
+                                "Exercise $setCount complete", Toast.LENGTH_SHORT).show()
+                        }
+
+                        if (setCount >= targetSetCount) {
+                            runOnUiThread {
+                                Toast.makeText(this@ExerciseActivity,
+                                    "Exercise completed", Toast.LENGTH_SHORT).show()
+                            }
+                            endExercise()
+                        } else {
+                            // Reset hold time for the next set.
+                            holdTime = 0L
+                            lastValidTime = 0L
+                        }
+                    }
+                }
+            } else {
+            // Reset the timer if the pose is lost.
+            lastValidTime = 0L
+        }
 
             if (isRelievingPose) {
                 if (!isRelievingPoseActive) {
@@ -1316,7 +1383,6 @@ class ExerciseActivity : AppCompatActivity() {
             } else {
                 soundManager.playDownSound()
                 isRelievingPoseActive = false
-                relievingPoseHoldTime = 0L
                 lastRelievingTime = 0L
                 if (currentPose == "Relieving pose") {
                     currentPose = "Not Relieving pose"
@@ -1337,8 +1403,8 @@ class ExerciseActivity : AppCompatActivity() {
 
     private fun exerciseTreePose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
         // Extract essential landmarks.
-        val leftShoulder = firstPersonLandmarks[11]
-        val rightShoulder = firstPersonLandmarks[12]
+        val leftEye = firstPersonLandmarks[1]
+        val rightEye = firstPersonLandmarks[6]
         val leftHip = firstPersonLandmarks[23]
         val rightHip = firstPersonLandmarks[24]
         val leftKnee = firstPersonLandmarks[25]
@@ -1349,7 +1415,7 @@ class ExerciseActivity : AppCompatActivity() {
         val rightWrist = firstPersonLandmarks[16]
 
         // Verify that all required landmarks are detected.
-        if (leftShoulder != null && rightShoulder != null &&
+        if (leftEye != null && rightEye != null &&
             leftHip != null && rightHip != null &&
             leftKnee != null && rightKnee != null &&
             leftAnkle != null && rightAnkle != null &&
@@ -1376,7 +1442,8 @@ class ExerciseActivity : AppCompatActivity() {
 
             // Evaluate arm elevation: both wrists must be above the corresponding shoulders.
             // In normalized coordinates, a lower y-value indicates a higher position.
-            val armsRaised = (leftWrist.y() < leftShoulder.y() && rightWrist.y() < rightShoulder.y())
+            val devationFactor =0.5
+            val armsRaised = (leftWrist.y() < (leftEye.y()+ devationFactor) && rightWrist.y() < (rightEye.y()+devationFactor))
 
             // Determine if the left leg is raised:
             // The left knee is significantly bent while the right knee remains nearly straight.
@@ -1402,6 +1469,7 @@ class ExerciseActivity : AppCompatActivity() {
                     // Accumulate the time difference.
                     val elapsed = currentTime - lastValidTime
                     holdTime += elapsed
+                    seconds= (holdTime/1000)
                     lastValidTime = currentTime
 
                     // Check if the target hold time is reached.
@@ -1410,7 +1478,7 @@ class ExerciseActivity : AppCompatActivity() {
                         soundManager.playCompleteSound()
                         runOnUiThread {
                             Toast.makeText(this@ExerciseActivity,
-                                "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                                "Tree Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
                         }
 
                         if (setCount >= targetSetCount) {
@@ -1428,7 +1496,7 @@ class ExerciseActivity : AppCompatActivity() {
                 }
             } else {
                 // Reset the timer if the pose is lost.
-                holdTime = 0L
+
                 lastValidTime = 0L
             }
             
@@ -1451,8 +1519,9 @@ class ExerciseActivity : AppCompatActivity() {
             }
 
             runOnUiThread {
-                binding.countTextView.text = "Time: ${holdTime}s"
-                binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"            }
+                binding.countTextView.text = "Time: ${holdTime / 1000}s"
+                binding.stageTextView.text = "Set: ${setCount}"
+            }
         }
     }
 
@@ -1599,8 +1668,8 @@ class ExerciseActivity : AppCompatActivity() {
 
         // Update the UI with the current Sun Salutation pose and state.
         runOnUiThread {
-            binding.countTextView.text = "Time: ${holdTime}s"
-            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"
+            binding.countTextView.text = "Time: ${holdTime/1000}s"
+            binding.stageTextView.text = "Set: ${setCount}"
         }
     }
 
@@ -1665,7 +1734,7 @@ class ExerciseActivity : AppCompatActivity() {
                     soundManager.playCompleteSound()
                     runOnUiThread {
                         Toast.makeText(this@ExerciseActivity,
-                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                            "Exercise $setCount complete", Toast.LENGTH_SHORT).show()
                     }
 
                     if (setCount >= targetSetCount) {
@@ -1684,7 +1753,6 @@ class ExerciseActivity : AppCompatActivity() {
             }
         } else {
             // Reset the timer if the pose is lost.
-            holdTime = 0L
             lastValidTime = 0L
             // Reset the handler whenever activity is detected
             lastConditionExecutionTime = System.currentTimeMillis()
@@ -1713,8 +1781,8 @@ class ExerciseActivity : AppCompatActivity() {
 
         // Update the UI.
         runOnUiThread {
-            binding.countTextView.text = "Time: ${holdTime}s"
-            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"        }
+            binding.countTextView.text = "Time: ${holdTime/1000}s"
+            binding.stageTextView.text = "Set: ${setCount}"        }
     }
 
     //Normal Pose
@@ -1782,7 +1850,7 @@ class ExerciseActivity : AppCompatActivity() {
                     soundManager.playCompleteSound()
                     runOnUiThread {
                         Toast.makeText(this@ExerciseActivity,
-                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                            "Exercise $setCount complete", Toast.LENGTH_SHORT).show()
                     }
 
                     if (setCount >= targetSetCount) {
@@ -1800,7 +1868,6 @@ class ExerciseActivity : AppCompatActivity() {
             }
         } else {
             // Reset the timer if the pose is lost.
-            holdTime = 0L
             lastValidTime = 0L
         }
 
@@ -1822,8 +1889,8 @@ class ExerciseActivity : AppCompatActivity() {
         }
 
         runOnUiThread {
-            binding.countTextView.text = "Time: ${holdTime}s"
-            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"
+            binding.countTextView.text = "Time: ${holdTime/1000}s"
+            binding.stageTextView.text = "Set: ${setCount}"
         }
     }
 
@@ -1898,7 +1965,7 @@ class ExerciseActivity : AppCompatActivity() {
                     soundManager.playCompleteSound()
                     runOnUiThread {
                         Toast.makeText(this@ExerciseActivity,
-                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                            "Exercise $setCount complete", Toast.LENGTH_SHORT).show()
                     }
 
                     if (setCount >= targetSetCount) {
@@ -1916,7 +1983,6 @@ class ExerciseActivity : AppCompatActivity() {
             }
         } else {
             // Reset the timer if the pose is lost.
-            holdTime = 0L
             lastValidTime = 0L
         }
 
@@ -1938,8 +2004,8 @@ class ExerciseActivity : AppCompatActivity() {
         }
 
         runOnUiThread {
-            binding.countTextView.text = "Time: ${holdTime}s"
-            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"        }
+            binding.countTextView.text = "Time: ${holdTime/1000}s"
+            binding.stageTextView.text = "Set: ${setCount}"        }
     }
 
     private fun exerciseBoatPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
@@ -2031,7 +2097,7 @@ class ExerciseActivity : AppCompatActivity() {
                     soundManager.playCompleteSound()
                     runOnUiThread {
                         Toast.makeText(this@ExerciseActivity,
-                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                            "Exercise $setCount complete", Toast.LENGTH_SHORT).show()
                     }
 
                     if (setCount >= targetSetCount) {
@@ -2049,7 +2115,6 @@ class ExerciseActivity : AppCompatActivity() {
             }
         } else {
             // Reset the timer if the pose is lost.
-            holdTime = 0L
             lastValidTime = 0L
         }
 
@@ -2073,8 +2138,8 @@ class ExerciseActivity : AppCompatActivity() {
         }
 
         runOnUiThread {
-            binding.countTextView.text = "Time: ${holdTime}s"
-            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"        }
+            binding.countTextView.text = "Time: ${holdTime/1000}s"
+            binding.stageTextView.text = "Set: ${setCount}"        }
     }
 
     private fun exerciseCatCowPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
@@ -2142,7 +2207,7 @@ class ExerciseActivity : AppCompatActivity() {
                     soundManager.playCompleteSound()
                     runOnUiThread {
                         Toast.makeText(this@ExerciseActivity,
-                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                            "Exercise $setCount complete", Toast.LENGTH_SHORT).show()
                     }
 
                     if (setCount >= targetSetCount) {
@@ -2160,7 +2225,7 @@ class ExerciseActivity : AppCompatActivity() {
             }
         } else {
             // Reset the timer if the pose is lost.
-            holdTime = 0L
+
             lastValidTime = 0L
         }
 
@@ -2196,8 +2261,8 @@ class ExerciseActivity : AppCompatActivity() {
 
         // Update the UI.
         runOnUiThread {
-            binding.countTextView.text = "Time: ${holdTime}s"
-            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"        }
+            binding.countTextView.text = "Time: ${holdTime/1000}s"
+            binding.stageTextView.text = "Set: ${setCount}"        }
     }
 
     private fun exerciseBowPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
@@ -2278,7 +2343,7 @@ class ExerciseActivity : AppCompatActivity() {
                     soundManager.playCompleteSound()
                     runOnUiThread {
                         Toast.makeText(this@ExerciseActivity,
-                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                            "Exercise $setCount complete", Toast.LENGTH_SHORT).show()
                     }
 
                     if (setCount >= targetSetCount) {
@@ -2296,7 +2361,6 @@ class ExerciseActivity : AppCompatActivity() {
             }
         } else {
             // Reset the timer if the pose is lost.
-            holdTime = 0L
             lastValidTime = 0L
         }
 
@@ -2321,8 +2385,8 @@ class ExerciseActivity : AppCompatActivity() {
         }
 
         runOnUiThread {
-            binding.countTextView.text = "Time: ${holdTime}s"
-            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"        }
+            binding.countTextView.text = "Time: ${holdTime/1000}s"
+            binding.stageTextView.text = "Set: ${setCount}"        }
     }
 
     //Overweight exercises
@@ -2413,7 +2477,7 @@ class ExerciseActivity : AppCompatActivity() {
                     soundManager.playCompleteSound()
                     runOnUiThread {
                         Toast.makeText(this@ExerciseActivity,
-                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                            "Exercise $setCount complete", Toast.LENGTH_SHORT).show()
                     }
 
                     if (setCount >= targetSetCount) {
@@ -2431,7 +2495,6 @@ class ExerciseActivity : AppCompatActivity() {
             }
         } else {
             // Reset the timer if the pose is lost.
-            holdTime = 0L
             lastValidTime = 0L
         }
 
@@ -2455,8 +2518,8 @@ class ExerciseActivity : AppCompatActivity() {
         }
 
         runOnUiThread {
-            binding.countTextView.text = "Time: ${holdTime}s"
-            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"        }
+            binding.countTextView.text = "Time: ${holdTime/1000}s"
+            binding.stageTextView.text = "Set: ${setCount}"        }
     }
 
     private fun exerciseTrianglePose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
@@ -2478,36 +2541,42 @@ class ExerciseActivity : AppCompatActivity() {
             return
         }
 
-        // Compute midpoints for shoulders and hips.
-        val midShoulderX = (leftShoulder.x() + rightShoulder.x()) / 2.0
-        val midShoulderY = (leftShoulder.y() + rightShoulder.y()) / 2.0
-        val midHipX = (leftHip.x() + rightHip.x()) / 2.0
-        val midHipY = (leftHip.y() + rightHip.y()) / 2.0
+//        // Compute midpoints for shoulders and hips.
+//        val midShoulderX = (leftShoulder.x() + rightShoulder.x()) / 2.0
+//        val midShoulderY = (leftShoulder.y() + rightShoulder.y()) / 2.0
+//        val midHipX = (leftHip.x() + rightHip.x()) / 2.0
+//        val midHipY = (leftHip.y() + rightHip.y()) / 2.0
+//
+//        // Compute torso tilt angle relative to vertical.
+//        // A perfectly vertical torso gives an angle of 0°. We compute:
+//        val dx = Math.abs(midShoulderX - midHipX)
+//        val dy = Math.abs(midShoulderY - midHipY)
+//        val torsoTiltRadians = Math.atan2(dx, dy)
+//        val torsoTiltDegrees = Math.toDegrees(torsoTiltRadians)
+//        // Expected tilt range for Triangle Pose.
+//        val torsoTiltValid = torsoTiltDegrees in 20.0..60.0
+//
+//        // Evaluate arm positions.
+//        // One arm should be raised (wrist above shoulder) while the other is lowered.
+//        val leftArmUp = leftWrist.y() < leftShoulder.y()
+//        val rightArmUp = rightWrist.y() < rightShoulder.y()
+//        val leftArmDown = leftWrist.y() > leftShoulder.y()
+//        val rightArmDown = rightWrist.y() > rightShoulder.y()
+//        val armCondition = (leftArmUp && rightArmDown) || (rightArmUp && leftArmDown)
+//
+//        // Evaluate leg stance: a wide stance is typical.
+//        // Check the horizontal distance between the hips.
+//        val hipDistance = rightHip.x() - leftHip.x()
+//        val wideStance = hipDistance > 0.3  // Threshold may be calibrated as needed.
 
-        // Compute torso tilt angle relative to vertical.
-        // A perfectly vertical torso gives an angle of 0°. We compute:
-        val dx = Math.abs(midShoulderX - midHipX)
-        val dy = Math.abs(midShoulderY - midHipY)
-        val torsoTiltRadians = Math.atan2(dx, dy)
-        val torsoTiltDegrees = Math.toDegrees(torsoTiltRadians)
-        // Expected tilt range for Triangle Pose.
-        val torsoTiltValid = torsoTiltDegrees in 20.0..60.0
+        val conditionTriangle1 = calculateAngle(leftAnkle.x(), leftAnkle.y(), leftHip.x(), leftHip.y(), rightAnkle.x(), rightAnkle.y()) in 40.0..85.0
 
-        // Evaluate arm positions.
-        // One arm should be raised (wrist above shoulder) while the other is lowered.
-        val leftArmUp = leftWrist.y() < leftShoulder.y()
-        val rightArmUp = rightWrist.y() < rightShoulder.y()
-        val leftArmDown = leftWrist.y() > leftShoulder.y()
-        val rightArmDown = rightWrist.y() > rightShoulder.y()
-        val armCondition = (leftArmUp && rightArmDown) || (rightArmUp && leftArmDown)
+        val conditionTriangle2= calculateAngle(leftAnkle.x(), leftAnkle.y(), leftHip.x(), leftHip.y(), leftShoulder.x(), leftShoulder.y()) in 70.0..145.0
 
-        // Evaluate leg stance: a wide stance is typical.
-        // Check the horizontal distance between the hips.
-        val hipDistance = rightHip.x() - leftHip.x()
-        val wideStance = hipDistance > 0.3  // Threshold may be calibrated as needed.
+        val conditionTriangle3= calculateAngle(leftWrist.x(), leftWrist.y(), leftShoulder.x(), leftShoulder.y(), rightWrist.x(), rightWrist.y())>165
 
         // Combine conditions to decide if the practitioner is in Triangle Pose.
-        val isTrianglePose = torsoTiltValid && armCondition && wideStance
+        val isTrianglePose =conditionTriangle1 && conditionTriangle2 && conditionTriangle3
 
 
         val currentTime = System.currentTimeMillis()
@@ -2529,7 +2598,7 @@ class ExerciseActivity : AppCompatActivity() {
                     soundManager.playCompleteSound()
                     runOnUiThread {
                         Toast.makeText(this@ExerciseActivity,
-                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                            "Exercise $setCount complete", Toast.LENGTH_SHORT).show()
                     }
 
                     if (setCount >= targetSetCount) {
@@ -2547,7 +2616,6 @@ class ExerciseActivity : AppCompatActivity() {
             }
         } else {
             // Reset the timer if the pose is lost.
-            holdTime = 0L
             lastValidTime = 0L
         }
 
@@ -2571,8 +2639,10 @@ class ExerciseActivity : AppCompatActivity() {
         }
 
         runOnUiThread {
-            binding.countTextView.text = "Time: ${holdTime}s"
-            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"        }
+            binding.countTextView.text = "Time: ${holdTime/1000}s"
+            binding.stageTextView.text = "Set: ${setCount}"
+
+        }
     }
 
     private fun exerciseWarrior2Pose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
@@ -2610,10 +2680,10 @@ class ExerciseActivity : AppCompatActivity() {
         )
 
         // Determine front leg condition:
-        // Either left knee is bent (80°-110°) while right knee is nearly extended (>160°),
+        // Either left knee is bent (80°-110°) while right knee is nearly extended (>150°),
         // or vice versa.
-        val isLeftLegFront = (leftKneeAngle in 80.0..110.0) && (rightKneeAngle > 160)
-        val isRightLegFront = (rightKneeAngle in 80.0..110.0) && (leftKneeAngle > 160)
+        val isLeftLegFront = (leftKneeAngle in 80.0..110.0) && (rightKneeAngle > 150)
+        val isRightLegFront = (rightKneeAngle in 80.0..110.0) && (leftKneeAngle > 150)
         val kneeCondition = isLeftLegFront || isRightLegFront
 
         // Evaluate arm positions.
@@ -2624,7 +2694,8 @@ class ExerciseActivity : AppCompatActivity() {
                 (Math.abs(leftWrist.y() - leftShoulder.y()) < 0.05)
         val rightArmExtended = (rightWrist.x() > rightShoulder.x()) &&
                 (Math.abs(rightWrist.y() - rightShoulder.y()) < 0.05)
-        val armCondition = leftArmExtended && rightArmExtended
+        val armCondition =calculateAngle(leftWrist.x(), leftWrist.y(), leftShoulder.x(), leftShoulder.y(), rightWrist.x(), rightWrist.y())>165
+
 
         // Evaluate wide stance: horizontal distance between ankles should exceed a threshold.
         val ankleDistance = Math.abs(rightAnkle.x() - leftAnkle.x())
@@ -2636,7 +2707,7 @@ class ExerciseActivity : AppCompatActivity() {
         val torsoUpright = Math.abs(midShoulderX - midHipX) < 0.1
 
         // Combine all conditions to determine if the pose is Warrior 2.
-        val isWarrior2Pose = kneeCondition && armCondition && wideStance && torsoUpright
+        val isWarrior2Pose = kneeCondition && armCondition  && torsoUpright
 
         val currentTime = System.currentTimeMillis()
 
@@ -2657,7 +2728,7 @@ class ExerciseActivity : AppCompatActivity() {
                     soundManager.playCompleteSound()
                     runOnUiThread {
                         Toast.makeText(this@ExerciseActivity,
-                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                            "Exercise $setCount complete", Toast.LENGTH_SHORT).show()
                     }
 
                     if (setCount >= targetSetCount) {
@@ -2675,7 +2746,6 @@ class ExerciseActivity : AppCompatActivity() {
             }
         } else {
             // Reset the timer if the pose is lost.
-            holdTime = 0L
             lastValidTime = 0L
         }
         if (isWarrior2Pose) {
@@ -2699,8 +2769,9 @@ class ExerciseActivity : AppCompatActivity() {
         }
 
         runOnUiThread {
-            binding.countTextView.text = "Time: ${holdTime}s"
-            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"        }
+            binding.countTextView.text = "Time: ${holdTime/1000}s"
+            binding.stageTextView.text = "Set: ${setCount}"
+        }
     }
     private fun exerciseChildPose(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
         // Extract required landmarks.
@@ -2776,7 +2847,7 @@ class ExerciseActivity : AppCompatActivity() {
                     soundManager.playCompleteSound()
                     runOnUiThread {
                         Toast.makeText(this@ExerciseActivity,
-                            "Chair Pose Set $setCount complete", Toast.LENGTH_SHORT).show()
+                            "Exercise $setCount complete", Toast.LENGTH_SHORT).show()
                     }
 
                     if (setCount >= targetSetCount) {
@@ -2794,7 +2865,6 @@ class ExerciseActivity : AppCompatActivity() {
             }
         } else {
             // Reset the timer if the pose is lost.
-            holdTime = 0L
             lastValidTime = 0L
         }
         if (isBalasana) {
@@ -2817,8 +2887,8 @@ class ExerciseActivity : AppCompatActivity() {
         }
 
         runOnUiThread {
-            binding.countTextView.text = "Time: ${holdTime}s"
-            binding.stageTextView.text = "Set: ${cobraSetCount + 1}/2"        }
+            binding.countTextView.text = "Time: ${holdTime/1000}s"
+            binding.stageTextView.text = "Set: ${setCount}"        }
     }
 
     private fun endExercise() {
