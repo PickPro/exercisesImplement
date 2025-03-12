@@ -1534,6 +1534,9 @@ class ExerciseActivity : AppCompatActivity() {
      */
     private fun exerciseSunSalutation(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
         // Extract essential landmarks.
+        val leftEye = firstPersonLandmarks[2]
+        val rightEye = firstPersonLandmarks[5]
+
         val leftShoulder = firstPersonLandmarks[11]
         val rightShoulder = firstPersonLandmarks[12]
         val leftHip = firstPersonLandmarks[23]
@@ -1606,7 +1609,7 @@ class ExerciseActivity : AppCompatActivity() {
                 }
             }
             1 -> { // Upward Salute: Arms raised overhead; wrists above shoulders.
-                if (leftWrist.y() < leftShoulder.y() && rightWrist.y() < rightShoulder.y() &&
+                if (leftWrist.y() < leftEye.y() && rightWrist.y() < rightEye.y() &&
                     leftKneeAngle > 170 && rightKneeAngle > 170) {
                     detectedPose = "Upward Salute"
                 }
@@ -1665,7 +1668,6 @@ class ExerciseActivity : AppCompatActivity() {
             }
         }
 
-
         // Update the UI with the current Sun Salutation pose and state.
         runOnUiThread {
             binding.countTextView.text = "Time: ${holdTime/1000}s"
@@ -1702,14 +1704,27 @@ class ExerciseActivity : AppCompatActivity() {
             leftKnee.x(), leftKnee.y(),
             leftAnkle.x(), leftAnkle.y()
         )
+
         val rightKneeAngle = calculateAngle(
             rightHip.x(), rightHip.y(),
             rightKnee.x(), rightKnee.y(),
             rightAnkle.x(), rightAnkle.y()
         )
 
+        val rightShoulderAngle = calculateAngle(
+            rightHip.x(), rightHip.y(),
+            rightShoulder.x(), rightShoulder.y(),
+            rightWrist.x(), rightWrist.y()
+        )
+
+        val leftShoulderAngle = calculateAngle(
+            leftHip.x(), leftHip.y(),
+            leftShoulder.x(), leftShoulder.y(),
+            leftWrist.x(), leftWrist.y()
+        )
+
         // Evaluate if arms are raised (lower y means higher in normalized coordinates).
-        val armsRaised = (leftWrist.y() < leftShoulder.y() && rightWrist.y() < rightShoulder.y())
+        val armsRaised = (leftShoulderAngle >160) && (rightShoulderAngle >160)
 
         // Chair Pose criteria: both knees bent (angle between 80° and 110°) and arms raised.
         val validKneeAngles = (leftKneeAngle in 80.0..110.0) && (rightKneeAngle in 80.0..110.0)
@@ -2030,30 +2045,6 @@ class ExerciseActivity : AppCompatActivity() {
             return
         }
 
-        // Compute midpoints for shoulders and hips.
-        val midShoulderX = (leftShoulder.x() + rightShoulder.x()) / 2.0
-        val midShoulderY = (leftShoulder.y() + rightShoulder.y()) / 2.0
-        val midHipX = (leftHip.x() + rightHip.x()) / 2.0
-        val midHipY = (leftHip.y() + rightHip.y()) / 2.0
-
-        // Compute trunk vector components.
-        val dx = midShoulderX - midHipX
-        val dy = midShoulderY - midHipY
-
-        // Calculate trunk angle relative to the vertical.
-        // In normalized coordinates, the vertical axis has zero horizontal deviation.
-        // The absolute angle (in degrees) from vertical is given by arctan(|dx|/|dy|).
-        val trunkAngleRadians = kotlin.math.atan2(kotlin.math.abs(dx), kotlin.math.abs(dy))
-        val trunkAngleDegrees = Math.toDegrees(trunkAngleRadians)
-
-        // For Boat Pose, the trunk is expected to lean backward.
-        // We require a moderate inclination between, for example, 30° and 60°.
-        val trunkInclined = trunkAngleDegrees in 30.0..60.0
-
-        // Check if the legs are lifted.
-        // In Boat Pose, the ankles are elevated relative to the hips.
-        val avgAnkleY = (leftAnkle.y() + rightAnkle.y()) / 2.0
-        val legsLifted = avgAnkleY < midHipY
 
         // Compute knee angles.
         val leftKneeAngle = calculateAngle(
@@ -2066,16 +2057,38 @@ class ExerciseActivity : AppCompatActivity() {
             rightKnee.x(), rightKnee.y(),
             rightAnkle.x(), rightAnkle.y()
         )
+        val leftHipAngle = calculateAngle(
+            leftShoulder.x(), leftShoulder.y(),
+            leftHip.x(), leftHip.y(),
+            leftKnee.x(), leftKnee.y()
+        )
+        val rightHipAngle = calculateAngle(
+            rightShoulder.x(), rightShoulder.y(),
+            rightHip.x(), rightHip.y(),
+            rightKnee.x(), rightKnee.y()
+        )
+        val leftHand = calculateAngle(
+            leftWrist.x(), leftWrist.y(),
+            leftShoulder.x(), leftShoulder.y(),
+            leftHip.x(), leftHip.y()
+        )
+        val rigthHand = calculateAngle(
+            rightWrist.x(), rightWrist.y(),
+            rightShoulder.x(), rightShoulder.y(),
+            rightHip.x(), rightHip.y()
+        )
         // For a fully extended leg, the knee angle should be high (e.g., > 160°).
         val legsExtended = (leftKneeAngle > 160) && (rightKneeAngle > 160)
 
         // Evaluate arm extension.
         // In Boat Pose, the arms are usually extended forward.
         // We require the wrists to be above the shoulders (i.e. lower y-values).
-        val armsExtended = (leftWrist.y() < leftShoulder.y()) && (rightWrist.y() < rightShoulder.y())
 
+        val armsExtended = leftHand in 20.0..50.0 && rigthHand in 20.0..50.0
+        val hipAngle= leftHipAngle in 70.0..100.0 && rightHipAngle in 70.0..100.0
         // Combine the criteria to determine Boat Pose.
-        val isBoatPose = trunkInclined && legsLifted && legsExtended && armsExtended
+
+        val isBoatPose = hipAngle &&  legsExtended && armsExtended
 
 
         val currentTime = System.currentTimeMillis()
