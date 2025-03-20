@@ -2324,7 +2324,7 @@ class ExerciseActivity : AppCompatActivity() {
         )
 
         // For Bow Pose, knees should be bent.
-        val kneesBent = (leftKneeAngle in 70.0..120.0) && (rightKneeAngle in 70.0..120.0)
+        val kneesBent = (leftKneeAngle in 30.0..70.0) && (rightKneeAngle in 30.0..70.0)
 
         // Compute midpoints for shoulders and hips.
         val midShoulderY = (leftShoulder.y() + rightShoulder.y()) / 2.0
