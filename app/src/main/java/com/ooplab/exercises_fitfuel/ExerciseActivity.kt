@@ -2355,14 +2355,10 @@ class ExerciseActivity : AppCompatActivity() {
         )
 
         // For Bow Pose, knees should be bent.
-        val kneesBent = (leftKneeAngle in 30.0..70.0) && (rightKneeAngle in 30.0..70.0)
+        val kneesBent = (leftKneeAngle in 60.0..85.0) && (rightKneeAngle in 60.0..85.0)
 
-        // Compute midpoints for shoulders and hips.
-        val midShoulderY = (leftShoulder.y() + rightShoulder.y()) / 2.0
-        val midHipY = (leftHip.y() + rightHip.y()) / 2.0
-        // In normalized coordinates, a smaller y-value indicates a higher position.
-        // The chest is considered lifted if the shoulders (chest) are above the hips.
-        val chestLifted = midShoulderY < midHipY
+        val chestLifted = (leftShoulder.y() < leftHip.y()) && (rightShoulder.y() < rightHip.y())
+
 
         // Combine all conditions to detect Bow Pose.
         val isBowPose = handsGraspingAnkles && kneesBent && chestLifted
@@ -2897,28 +2893,28 @@ class ExerciseActivity : AppCompatActivity() {
 
         val isBalasana = kneesBent && hipsFolded && elbowsRelaxed && torsoTiltValid && headLowered
 
-        Log.d("DebugPose", "-------------------------")
-        Log.d("DebugPose", "Left Knee Angle: $leftKneeAngle")
-        Log.d("DebugPose", "Right Knee Angle: $rightKneeAngle")
-        Log.d("DebugPose", "Knees Bent: $kneesBent")
-
-        Log.d("DebugPose", "Left Hip Angle: $leftHipAngle")
-        Log.d("DebugPose", "Right Hip Angle: $rightHipAngle")
-        Log.d("DebugPose", "Hips Folded: $hipsFolded")
-
-        Log.d("DebugPose", "Left Elbow Angle: $leftElbowAngle")
-        Log.d("DebugPose", "Right Elbow Angle: $rightElbowAngle")
-        Log.d("DebugPose", "Elbows Relaxed: $elbowsRelaxed")
-
-        Log.d("DebugPose", "Torso Tilt Left: $torsoTiltLeft")
-        Log.d("DebugPose", "Torso Tilt Right: $torsoTiltRight")
-        Log.d("DebugPose", "Torso Tilt Valid: $torsoTiltValid")
-
-        Log.d("DebugPose", "Nose Y: ${nose.y()}, LeftHip Y: ${leftHip.y()}, RightHip Y: ${rightHip.y()}")
-        Log.d("DebugPose", "Head Lowered: $headLowered")
-
-        Log.d("DebugPose", "Final isBalasana: $isBalasana")
-        Log.d("DebugPose", "-------------------------")
+//        Log.d("DebugPose", "-------------------------")
+//        Log.d("DebugPose", "Left Knee Angle: $leftKneeAngle")
+//        Log.d("DebugPose", "Right Knee Angle: $rightKneeAngle")
+//        Log.d("DebugPose", "Knees Bent: $kneesBent")
+//
+//        Log.d("DebugPose", "Left Hip Angle: $leftHipAngle")
+//        Log.d("DebugPose", "Right Hip Angle: $rightHipAngle")
+//        Log.d("DebugPose", "Hips Folded: $hipsFolded")
+//
+//        Log.d("DebugPose", "Left Elbow Angle: $leftElbowAngle")
+//        Log.d("DebugPose", "Right Elbow Angle: $rightElbowAngle")
+//        Log.d("DebugPose", "Elbows Relaxed: $elbowsRelaxed")
+//
+//        Log.d("DebugPose", "Torso Tilt Left: $torsoTiltLeft")
+//        Log.d("DebugPose", "Torso Tilt Right: $torsoTiltRight")
+//        Log.d("DebugPose", "Torso Tilt Valid: $torsoTiltValid")
+//
+//        Log.d("DebugPose", "Nose Y: ${nose.y()}, LeftHip Y: ${leftHip.y()}, RightHip Y: ${rightHip.y()}")
+//        Log.d("DebugPose", "Head Lowered: $headLowered")
+//
+//        Log.d("DebugPose", "Final isBalasana: $isBalasana")
+//        Log.d("DebugPose", "-------------------------")
 
         val currentTime = System.currentTimeMillis()
 
