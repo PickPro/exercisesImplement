@@ -36,6 +36,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.lang.Thread.State
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.abs
@@ -318,65 +319,86 @@ class ExerciseActivity : AppCompatActivity() {
         }
 
     }
-    private fun exerciseKickBack(firstPersonLandmarks: MutableList<NormalizedLandmark>)
-    {
+    private var stateLeft = "None"
+    private var stateRight = "None"
 
-        // Access the first set of landmarks (for the first detected person)
+    private fun exerciseKickBack(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
         val landmarks = firstPersonLandmarks
 
-        // Define points for shoulders, hips, elbows, knees, and ankles
         val leftShoulder = landmarks[11]
         val rightShoulder = landmarks[12]
-        val leftHip = landmarks[23]
-        val rightHip = landmarks[24]
         val leftElbow = landmarks[13]
         val rightElbow = landmarks[14]
+        val leftHip = landmarks[23]
+        val rightHip = landmarks[24]
         val leftKnee = landmarks[25]
         val rightKnee = landmarks[26]
-        val leftAnkle = landmarks[27]
-        val rightAnkle = landmarks[28]
+
+        if (leftShoulder != null && rightShoulder != null &&
+            leftElbow != null && rightElbow != null &&
+            leftHip != null && rightHip != null &&
+            leftKnee != null && rightKnee != null) {
 
 
-// Check if all necessary landmarks are detected
-        if (leftShoulder != null && rightShoulder != null && leftHip != null && rightHip != null &&
-            leftElbow != null && rightElbow != null && leftKnee != null && rightKnee != null &&
-            leftAnkle != null && rightAnkle != null
-        ) {
-
-            // Calculate angles for kickback position
-            val angleKneeLeft = calculateAngle360(
+            var angleLeft = calculateAngle360(
+                leftShoulder.x(), leftShoulder.y(),
                 leftHip.x(), leftHip.y(),
-                leftKnee.x(), leftKnee.y(),
-                leftAnkle.x(), leftAnkle.y()
+                leftKnee.x(), leftKnee.y()
             )
-            val angleKneeRight = calculateAngle360(
-                rightHip.x(), rightHip.y(),
-                rightKnee.x(), rightKnee.y(),
-                rightAnkle.x(), rightAnkle.y()
-            )
+            if (angleLeft > 180) angleLeft = 360 - angleLeft
 
-
-            val angleHipRight = calculateAngle360(
+            var angleRight = calculateAngle360(
                 rightShoulder.x(), rightShoulder.y(),
                 rightHip.x(), rightHip.y(),
                 rightKnee.x(), rightKnee.y()
             )
-            val angleHipLeft = calculateAngle360(
+            if (angleRight > 180) angleRight = 360 - angleRight
+
+
+            var shoulderAngleLeft = calculateAngle360(
+                leftElbow.x(), leftElbow.y(),
                 leftShoulder.x(), leftShoulder.y(),
-                leftHip.x(), leftHip.y(),
-                leftKnee.x(), leftKnee.y(),
+                leftHip.x(), leftHip.y()
             )
+            if (shoulderAngleLeft > 180) shoulderAngleLeft = 360 - shoulderAngleLeft
+
+            var shoulderAngleRight = calculateAngle360(
+                rightElbow.x(), rightElbow.y(),
+                rightShoulder.x(), rightShoulder.y(),
+                rightHip.x(), rightHip.y()
+            )
+            if (shoulderAngleRight > 180) shoulderAngleRight = 360 - shoulderAngleRight
+
+            val isShoulderPoseValid = shoulderAngleLeft in 70.0..100.0 || shoulderAngleRight in 70.0..100.0
+            Log.d("ShoulderAngles", "Left Shoulder Angle: $shoulderAngleLeft | Right Shoulder Angle: $shoulderAngleRight")
+
+            if (!isShoulderPoseValid) {
+                runOnUiThread {
+                    binding.stageTextView.text = "Fix your shoulder posture!"
+                }
+                return
+            }
 
 
-            // Define conditions for kickback position in the range 130 to 150 degrees
-            val kickbackConditionLeft =
-                (angleKneeLeft > 130.0 && angleKneeLeft < 191.0)
+            if ((stateLeft == "None" || stateLeft == "DownState") && angleLeft > 160) {
+                stateLeft = "UpState"
+                count++
+                soundManager.playUpSound()
+            } else if (stateLeft == "UpState" && angleLeft in 80.0..100.0) {
+                stateLeft = "DownState"
+                soundManager.playDownSound()
+            }
 
-            val doggyPosition = angleKneeLeft > 50 && angleKneeLeft < 110
-            val kickbackConditionRight =
-                (angleKneeRight > 210.0 && angleKneeRight < 270.0)
-            val hipCondition = (angleHipLeft > 120.0 && angleHipLeft < 186.0)
-            //condition to complete the exercise
+
+            if ((stateRight == "None" || stateRight == "DownState") && angleRight > 160) {
+                stateRight = "UpState"
+                count++
+                soundManager.playUpSound()
+            } else if (stateRight == "UpState" && angleRight in 80.0..100.0) {
+                stateRight = "DownState"
+                soundManager.playDownSound()
+            }
+
             if (count >= 5) {
                 runOnUiThread {
                     Toast.makeText(
@@ -388,39 +410,17 @@ class ExerciseActivity : AppCompatActivity() {
                 endExercise()
             }
 
-// Check if both kickback conditions are met and update the state
-            if (kickbackConditionLeft && hipCondition) {
-                // Set flag indicating that both legs are in the kickback position
-                inKickbackPosition = true
-                soundManager.playUpSound()
-                // Reset the handler whenever activity is detected
-                lastConditionExecutionTime = System.currentTimeMillis()
-                scope.launch {
-                    delayedNoActivitySound()
-                }
-            } else if (inKickbackPosition && doggyPosition) {
-                // Only increment count if transitioning from kickback position to normal position
-                count++
-                inKickbackPosition = false // Reset for the next rep cycle
-                soundManager.playDownSound()
-                // Reset the handler whenever activity is detected
-                lastConditionExecutionTime = System.currentTimeMillis()
-                scope.launch {
-                    delayedNoActivitySound()
-                }
-            }
-
-// Update TextViews on the main thread
-            runOnUiThread() {
-                binding. countTextView.text = "Reps: $count"
-                binding. stageTextView.text =
-                    if (inKickbackPosition) "In Kickback Position" else "Down"
-
+            runOnUiThread {
+                binding.countTextView.text = "Reps: $count"
+                binding.stageTextView.text =
+                    if (stateLeft == "UpState" || stateRight == "UpState")
+                        "In Kickback Position"
+                    else
+                        "Down"
             }
         }
-
-
     }
+
 
 
     private fun exerciseJumpingJack(firstPersonLandmarks: MutableList<NormalizedLandmark>)
@@ -653,6 +653,9 @@ class ExerciseActivity : AppCompatActivity() {
             plankRunnable = null
         }
     }
+
+
+
 
     private fun exerciseSitups(firstPersonLandmarks: MutableList<NormalizedLandmark>)
     {
@@ -1723,12 +1726,28 @@ class ExerciseActivity : AppCompatActivity() {
             leftWrist.x(), leftWrist.y()
         )
 
+        val leftHipAngle = calculateAngle(
+            leftShoulder.x(), leftShoulder.y(),
+            leftHip.x(), leftHip.y(),
+            leftKnee.x(), leftKnee.y()
+        )
+        val rightHipAngle = calculateAngle(
+            rightShoulder.x(), rightShoulder.y(),
+            rightHip.x(), rightHip.y(),
+            rightKnee.x(), rightKnee.y()
+        )
+
+
         // Evaluate if arms are raised (lower y means higher in normalized coordinates).
-        val armsRaised = (leftShoulderAngle >160) && (rightShoulderAngle >160)
+        val armsRaised = (leftShoulderAngle in 160.0..180.0) && (rightShoulderAngle in 160.0..180.0)
 
         // Chair Pose criteria: both knees bent (angle between 80° and 110°) and arms raised.
-        val validKneeAngles = (leftKneeAngle in 80.0..110.0) && (rightKneeAngle in 80.0..110.0)
-        val isChairPose = validKneeAngles && armsRaised
+        val validKneeAngles = (leftKneeAngle in 95.0..120.0) && (rightKneeAngle in 95.0..120.0)
+
+        val hipAngle = (leftHipAngle in 95.0 .. 110.0 ) && (rightHipAngle in 95.0 .. 110.0 )
+
+
+        val isChairPose = validKneeAngles && armsRaised && hipAngle
 
         val currentTime = System.currentTimeMillis()
 
@@ -2077,19 +2096,31 @@ class ExerciseActivity : AppCompatActivity() {
             rightShoulder.x(), rightShoulder.y(),
             rightHip.x(), rightHip.y()
         )
+//        Log.d("PoseAngles", "Left Knee Angle: $leftKneeAngle")
+//        Log.d("PoseAngles", "Right Knee Angle: $rightKneeAngle")
+//        Log.d("PoseAngles", "Left Hip Angle: $leftHipAngle")
+//        Log.d("PoseAngles", "Right Hip Angle: $rightHipAngle")
+//        Log.d("PoseAngles", "Left Hand Angle: $leftHand")
+//        Log.d("PoseAngles", "Right Hand Angle: $rigthHand")
+
+
         // For a fully extended leg, the knee angle should be high (e.g., > 160°).
-        val legsExtended = (leftKneeAngle > 160) && (rightKneeAngle > 160)
+        val legsExtended = (leftKneeAngle in 140.0 .. 185.0) && (rightKneeAngle in 140.0 .. 185.0)
 
         // Evaluate arm extension.
         // In Boat Pose, the arms are usually extended forward.
         // We require the wrists to be above the shoulders (i.e. lower y-values).
 
-        val armsExtended = leftHand in 20.0..50.0 && rigthHand in 20.0..50.0
-        val hipAngle= leftHipAngle in 70.0..100.0 && rightHipAngle in 70.0..100.0
+        val armsExtended = (leftHand in 45.0..65.0) && (rigthHand in 45.0..65.0)
+        val hipAngle= (leftHipAngle in 60.0..80.0 )&& (rightHipAngle in 60.0..80.0)
         // Combine the criteria to determine Boat Pose.
 
         val isBoatPose = hipAngle &&  legsExtended && armsExtended
 
+//        Log.d("PoseCheck", "Legs Extended: $legsExtended")
+//        Log.d("PoseCheck", "Arms Extended: $armsExtended")
+//        Log.d("PoseCheck", "Hip Angle Correct: $hipAngle")
+//        Log.d("PoseCheck", "Boat Pose Detected: $isBoatPose")
 
         val currentTime = System.currentTimeMillis()
 
@@ -2791,6 +2822,10 @@ class ExerciseActivity : AppCompatActivity() {
         val nose = firstPersonLandmarks[0]
         val leftShoulder = firstPersonLandmarks[11]
         val rightShoulder = firstPersonLandmarks[12]
+        val leftElbow = firstPersonLandmarks[13]
+        val rightElbow = firstPersonLandmarks[14]
+        val leftWrist = firstPersonLandmarks[15]
+        val rightWrist = firstPersonLandmarks[16]
         val leftHip = firstPersonLandmarks[23]
         val rightHip = firstPersonLandmarks[24]
         val leftKnee = firstPersonLandmarks[25]
@@ -2806,23 +2841,6 @@ class ExerciseActivity : AppCompatActivity() {
             return
         }
 
-        // Compute midpoints for shoulders and hips.
-        val midShoulderX = (leftShoulder.x() + rightShoulder.x()) / 2.0
-        val midShoulderY = (leftShoulder.y() + rightShoulder.y()) / 2.0
-        val midHipX = (leftHip.x() + rightHip.x()) / 2.0
-        val midHipY = (leftHip.y() + rightHip.y()) / 2.0
-
-        // Compute torso tilt angle relative to vertical.
-        val dx = kotlin.math.abs(midShoulderX - midHipX)
-        val dy = kotlin.math.abs(midShoulderY - midHipY)
-        val torsoTiltRadians = kotlin.math.atan2(dx, dy)
-        val torsoTiltDegrees = Math.toDegrees(torsoTiltRadians)
-        // In Balasana, the torso is folded forward; we expect a significant tilt (e.g., > 45°).
-        val torsoTiltValid = torsoTiltDegrees > 45.0
-
-        // Check head position:
-        // In Balasana, the head is lowered. The nose should be lower (i.e., have a higher y-value) than the mid-shoulder by a margin.
-        val headLowered = nose.y() > (midShoulderY + 0.05)
 
         // Compute knee angles using hip, knee, and ankle landmarks.
         val leftKneeAngle = calculateAngle(
@@ -2835,11 +2853,72 @@ class ExerciseActivity : AppCompatActivity() {
             rightKnee.x(), rightKnee.y(),
             rightAnkle.x(), rightAnkle.y()
         )
-        // In a kneeling position (Balasana), the knees are bent. A knee angle less than about 120° is typical.
-        val kneesBent = (leftKneeAngle < 120) && (rightKneeAngle < 120)
 
-        // Combine all conditions to decide if the practitioner is in Balasana.
-        val isBalasana = torsoTiltValid && headLowered && kneesBent
+        // Hip Angles (shoulder–hip–knee)
+        val leftHipAngle = calculateAngle(
+            leftShoulder.x(), leftShoulder.y(),
+            leftHip.x(), leftHip.y(),
+            leftKnee.x(), leftKnee.y()
+        )
+        val rightHipAngle = calculateAngle(
+            rightShoulder.x(), rightShoulder.y(),
+            rightHip.x(), rightHip.y(),
+            rightKnee.x(), rightKnee.y()
+        )
+
+        // Elbow Angles (wrist–elbow–shoulder)
+        val leftElbowAngle = calculateAngle(
+            leftWrist.x(), leftWrist.y(),
+            leftElbow.x(), leftElbow.y(),
+            leftShoulder.x(), leftShoulder.y()
+        )
+        val rightElbowAngle = calculateAngle(
+            rightWrist.x(), rightWrist.y(),
+            rightElbow.x(), rightElbow.y(),
+            rightShoulder.x(), rightShoulder.y()
+        )
+        val torsoTiltLeft = calculateAngle(
+            leftHip.x(), leftHip.y(),
+            leftShoulder.x(), leftShoulder.y(),
+            leftAnkle.x(), leftAnkle.y()
+        )
+        val torsoTiltRight = calculateAngle(
+            rightHip.x(), rightHip.y(),
+            rightShoulder.x(), rightShoulder.y(),
+            rightAnkle.x(), rightAnkle.y()
+        )
+
+        // In a kneeling position (Balasana), the knees are bent. A knee angle less than about 120° is typical.
+        val kneesBent = (leftKneeAngle in 25.0..35.0) && (rightKneeAngle in 25.0..35.0)
+        val hipsFolded = (leftHipAngle in 25.0..35.0) && (rightHipAngle in 25.0..35.0)
+        val elbowsRelaxed = (leftElbowAngle in 150.0..170.0) && (rightElbowAngle in 150.0..170.0)
+        val torsoTiltValid = (torsoTiltLeft in 18.0..25.0) && (torsoTiltRight in 18.0..25.0)
+        val headLowered = nose.y() > leftHip.y() && nose.y() > rightHip.y()
+
+        val isBalasana = kneesBent && hipsFolded && elbowsRelaxed && torsoTiltValid && headLowered
+
+        Log.d("DebugPose", "-------------------------")
+        Log.d("DebugPose", "Left Knee Angle: $leftKneeAngle")
+        Log.d("DebugPose", "Right Knee Angle: $rightKneeAngle")
+        Log.d("DebugPose", "Knees Bent: $kneesBent")
+
+        Log.d("DebugPose", "Left Hip Angle: $leftHipAngle")
+        Log.d("DebugPose", "Right Hip Angle: $rightHipAngle")
+        Log.d("DebugPose", "Hips Folded: $hipsFolded")
+
+        Log.d("DebugPose", "Left Elbow Angle: $leftElbowAngle")
+        Log.d("DebugPose", "Right Elbow Angle: $rightElbowAngle")
+        Log.d("DebugPose", "Elbows Relaxed: $elbowsRelaxed")
+
+        Log.d("DebugPose", "Torso Tilt Left: $torsoTiltLeft")
+        Log.d("DebugPose", "Torso Tilt Right: $torsoTiltRight")
+        Log.d("DebugPose", "Torso Tilt Valid: $torsoTiltValid")
+
+        Log.d("DebugPose", "Nose Y: ${nose.y()}, LeftHip Y: ${leftHip.y()}, RightHip Y: ${rightHip.y()}")
+        Log.d("DebugPose", "Head Lowered: $headLowered")
+
+        Log.d("DebugPose", "Final isBalasana: $isBalasana")
+        Log.d("DebugPose", "-------------------------")
 
         val currentTime = System.currentTimeMillis()
 
