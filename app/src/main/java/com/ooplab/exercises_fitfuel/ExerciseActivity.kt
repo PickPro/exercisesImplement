@@ -43,6 +43,7 @@ import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.sqrt
 import kotlin.math.pow
+import kotlin.math.abs
 
 
 class ExerciseActivity : AppCompatActivity() {
@@ -224,6 +225,7 @@ class ExerciseActivity : AppCompatActivity() {
                         "Triangle Pose"      -> exerciseTrianglePose(allLandmarks[0])
                         "Warrior 2"          -> exerciseWarrior2Pose(allLandmarks[0])
                         "Child Pose"         -> exerciseChildPose(allLandmarks[0])
+                        "Bridge Pose"          -> exerciseBridgePose(allLandmarks[0])
                     }
                 }else {
                     Log.d("PoseLandmarks", "No landmarks detected.")
@@ -420,7 +422,125 @@ class ExerciseActivity : AppCompatActivity() {
             }
         }
     }
+    private fun exerciseBridgePose(firstPersonLandmarks: MutableList<NormalizedLandmark>){
+        val landmarks = firstPersonLandmarks
 
+
+        // Define points for left and right hips, knees, shoulders, and ankles
+        val leftHip = landmarks[23]
+        val rightHip = landmarks[24]
+        val leftShoulder = landmarks[11]
+        val rightShoulder = landmarks[12]
+        val leftAnkle = landmarks[27]
+        val rightAnkle = landmarks[28]
+        val leftElbow = landmarks[13]
+        val rightElbow = landmarks[14]
+        val leftKnee = landmarks[25]
+        val rightKnee = landmarks[26]
+
+        if (leftHip != null && rightHip != null &&
+            leftShoulder != null && rightShoulder != null &&
+            leftAnkle != null && rightAnkle != null &&
+            leftElbow != null && rightElbow != null
+        ){
+            val leftKneeAngle = calculateAngle(
+                leftHip.x(), leftHip.y(),
+                leftKnee.x(), leftKnee.y(),
+                leftAnkle.x(), leftAnkle.y()
+            )
+
+            val rightKneeAngle = calculateAngle(
+                rightHip.x(), rightHip.y(),
+                rightKnee.x(), rightKnee.y(),
+                rightAnkle.x(), rightAnkle.y()
+            )
+
+            val leftHipAngle = calculateAngle(
+                leftShoulder.x(), leftShoulder.y(),
+                leftHip.x(), leftHip.y(),
+                leftKnee.x(), leftKnee.y()
+            )
+
+            val rightHipAngle = calculateAngle(
+                rightShoulder.x(), rightShoulder.y(),
+                rightHip.x(), rightHip.y(),
+                rightKnee.x(), rightKnee.y()
+            )
+
+            val kneeCond = (leftKneeAngle in 60.0 .. 80.0) &&(rightKneeAngle in 60.0 .. 80.0)
+            val hipCond = (leftHipAngle in 170.0 .. 180.0 ) && (rightHipAngle in 170.0 .. 180.0 )
+            val threshold = 10;
+            val handPose = (abs(leftElbow.y() - leftAnkle.y()) <= threshold) &&
+                    (abs(rightElbow.y() - rightAnkle.y()) <= threshold)
+
+            val isBridgePose = kneeCond && hipCond && handPose
+//            Log.d("BridgeDebug", "=======================================")
+//            Log.d("BridgeDebug", "Left Knee Angle: $leftKneeAngle")
+//            Log.d("BridgeDebug", "Right Knee Angle: $rightKneeAngle")
+//            Log.d("BridgeDebug", "Knee Condition: $kneeCond")
+//
+//            Log.d("BridgeDebug", "Left Hip Angle: $leftHipAngle")
+//            Log.d("BridgeDebug", "Right Hip Angle: $rightHipAngle")
+//            Log.d("BridgeDebug", "Hip Condition: $hipCond")
+//
+//            Log.d("BridgeDebug", "Left Elbow Y: ${leftElbow.y()}, Left Ankle Y: ${leftAnkle.y()}, Δ: ${abs(leftElbow.y() - leftAnkle.y())}")
+//            Log.d("BridgeDebug", "Right Elbow Y: ${rightElbow.y()}, Right Ankle Y: ${rightAnkle.y()}, Δ: ${abs(rightElbow.y() - rightAnkle.y())}")
+//            Log.d("BridgeDebug", "HandPose Condition: $handPose")
+//
+//            Log.d("BridgeDebug", "Final isBridgePose: $isBridgePose")
+
+            val currentTime = System.currentTimeMillis()
+
+            if (isBridgePose) {
+                if (lastValidTime == 0L) {
+                    lastValidTime = currentTime
+                } else {
+                    val elapsed = currentTime - lastValidTime
+                    holdTime += elapsed
+                    lastValidTime = currentTime
+
+                    if (holdTime >= targetHoldTime) {
+                        setCount++
+                        soundManager.playCompleteSound()
+                        runOnUiThread {
+                            Toast.makeText(this@ExerciseActivity, "Bridge Set $setCount complete", Toast.LENGTH_SHORT).show()
+                        }
+
+                        if (setCount >= targetSetCount) {
+                            runOnUiThread {
+                                Toast.makeText(this@ExerciseActivity, "Bridge exercise completed", Toast.LENGTH_SHORT).show()
+                            }
+                            endExercise()
+                        } else {
+                            holdTime = 0L
+                            lastValidTime = 0L
+                        }
+                    }
+                }
+            } else {
+                lastValidTime = 0L
+            }
+
+            if (isBridgePose) {
+                if (currentPose != "Bridge") {
+                    currentPose = "Bridge"
+                    soundManager.playUpSound()
+                }
+            } else {
+                if (currentPose == "Bridge") {
+                    currentPose = "Not Bridge"
+                    soundManager.playDownSound()
+                    lastConditionExecutionTime = System.currentTimeMillis()
+                    scope.launch { delayedNoActivitySound() }
+                }
+            }
+
+            runOnUiThread {
+                binding.countTextView.text = "Time: ${holdTime / 1000}s"
+                binding.stageTextView.text = "Set: $setCount"
+            }
+        }
+    }
 
 
     private fun exerciseJumpingJack(firstPersonLandmarks: MutableList<NormalizedLandmark>)

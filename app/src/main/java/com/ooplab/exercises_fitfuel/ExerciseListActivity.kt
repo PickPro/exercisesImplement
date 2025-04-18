@@ -52,12 +52,14 @@ class ExerciseListActivity : AppCompatActivity() {
             ExerciseModel("Glute Bridge", "Over Weight"), // Moved from Strength
             ExerciseModel("Warrior 2", "Over Weight"),
             ExerciseModel("Child Pose", "Over Weight"),
+            ExerciseModel("Bridge Pose", "Over Weight"),
 
             ExerciseModel("Mountain Pose", "Normal"),
             ExerciseModel("Easy Pose", "Normal"),
             ExerciseModel("Boat Pose", "Normal"),
             ExerciseModel("Cat Cow Pose", "Normal"),
-            ExerciseModel("Bow Pose", "Normal")
+            ExerciseModel("Bow Pose", "Normal"),
+
         )
 
 
