@@ -2566,12 +2566,16 @@ class ExerciseActivity : AppCompatActivity() {
         // Extract essential landmarks.
         val leftShoulder = firstPersonLandmarks[11]
         val rightShoulder = firstPersonLandmarks[12]
+        val rightElbow = firstPersonLandmarks[14]
+        val leftElbow = firstPersonLandmarks[13]
         val leftHip = firstPersonLandmarks[23]
         val rightHip = firstPersonLandmarks[24]
         val leftWrist = firstPersonLandmarks[15]
         val rightWrist = firstPersonLandmarks[16]
         val leftAnkle = firstPersonLandmarks[27]
         val rightAnkle = firstPersonLandmarks[28]
+        val leftKnee = firstPersonLandmarks[25]
+        val rightKnee = firstPersonLandmarks[26]
 
         // Proceed only if all required landmarks are available.
         if (leftShoulder == null || rightShoulder == null ||
@@ -2581,42 +2585,55 @@ class ExerciseActivity : AppCompatActivity() {
             return
         }
 
-//        // Compute midpoints for shoulders and hips.
-//        val midShoulderX = (leftShoulder.x() + rightShoulder.x()) / 2.0
-//        val midShoulderY = (leftShoulder.y() + rightShoulder.y()) / 2.0
-//        val midHipX = (leftHip.x() + rightHip.x()) / 2.0
-//        val midHipY = (leftHip.y() + rightHip.y()) / 2.0
-//
-//        // Compute torso tilt angle relative to vertical.
-//        // A perfectly vertical torso gives an angle of 0°. We compute:
-//        val dx = Math.abs(midShoulderX - midHipX)
-//        val dy = Math.abs(midShoulderY - midHipY)
-//        val torsoTiltRadians = Math.atan2(dx, dy)
-//        val torsoTiltDegrees = Math.toDegrees(torsoTiltRadians)
-//        // Expected tilt range for Triangle Pose.
-//        val torsoTiltValid = torsoTiltDegrees in 20.0..60.0
-//
-//        // Evaluate arm positions.
-//        // One arm should be raised (wrist above shoulder) while the other is lowered.
-//        val leftArmUp = leftWrist.y() < leftShoulder.y()
-//        val rightArmUp = rightWrist.y() < rightShoulder.y()
-//        val leftArmDown = leftWrist.y() > leftShoulder.y()
-//        val rightArmDown = rightWrist.y() > rightShoulder.y()
-//        val armCondition = (leftArmUp && rightArmDown) || (rightArmUp && leftArmDown)
-//
-//        // Evaluate leg stance: a wide stance is typical.
-//        // Check the horizontal distance between the hips.
-//        val hipDistance = rightHip.x() - leftHip.x()
-//        val wideStance = hipDistance > 0.3  // Threshold may be calibrated as needed.
+        val midHipX = ((leftHip.x() + rightHip.x()) / 2.0).toFloat()
+        val midHipY = ((leftHip.y() + rightHip.y()) / 2.0).toFloat()
 
-        val conditionTriangle1 = calculateAngle(leftAnkle.x(), leftAnkle.y(), leftHip.x(), leftHip.y(), rightAnkle.x(), rightAnkle.y()) in 40.0..85.0
 
-        val conditionTriangle2= calculateAngle(leftAnkle.x(), leftAnkle.y(), leftHip.x(), leftHip.y(), leftShoulder.x(), leftShoulder.y()) in 70.0..145.0
+        val RLhipsAnkel = calculateAngle(
+            leftAnkle.x(), leftAnkle.y(),
+            midHipX, midHipY,
+            rightAnkle.x(), rightAnkle.y()
+        )
 
-        val conditionTriangle3= calculateAngle(leftWrist.x(), leftWrist.y(), leftShoulder.x(), leftShoulder.y(), rightWrist.x(), rightWrist.y())>165
+        val shoulderRAngle = calculateAngle(
+            rightHip.x(),rightHip.y(),
+            rightShoulder.x(),rightShoulder.y(),
+            rightElbow.x(),rightElbow.y()
+        )
+
+        val shoulderLAngle = calculateAngle(
+            leftHip.x(),leftHip.y(),
+            leftShoulder.x(),leftShoulder.y(),
+            leftElbow.x(),leftElbow.y()
+        )
+
+        val LeftHipAngle = calculateAngle(
+            leftShoulder.x(),leftShoulder.y(),
+            leftHip.x(),leftHip.y(),
+            leftKnee.x(),leftKnee.y()
+        )
+        val rightHipAngle = calculateAngle(
+            rightShoulder.x(),rightShoulder.y(),
+            rightHip.x(),rightHip.y(),
+            rightKnee.x(),rightKnee.y()
+        )
+
+        val midhibCond = (RLhipsAnkel in 75.0 .. 100.0)
+        val shoulders = (shoulderRAngle in 100.0 .. 130.0) && (shoulderLAngle in 90.0 .. 130.0)
+        val hipCond = ((LeftHipAngle in 30.0 .. 60.0 ) && (rightHipAngle in 130.0 .. 160.0)) || ((rightHipAngle in 30.0 .. 60.0 ) && (LeftHipAngle in 130.0 .. 160.0))
+
+
 
         // Combine conditions to decide if the practitioner is in Triangle Pose.
-        val isTrianglePose =conditionTriangle1 && conditionTriangle2 && conditionTriangle3
+        val isTrianglePose =midhibCond && shoulders && hipCond
+//        Log.d("PoseDebug", "=====================================================")
+//        Log.d("PoseDebug", "RLhipsAnkel: $RLhipsAnkel")
+//        Log.d("PoseDebug", "midhipCond: $midhibCond")
+//        Log.d("PoseDebug", "shoulderRAngle: $shoulderRAngle, shoulderLAngle: $shoulderLAngle")
+//        Log.d("PoseDebug", "shouldersCond: $shoulders")
+//        Log.d("PoseDebug", "LeftHipAngle: $LeftHipAngle, rightHipAngle: $rightHipAngle")
+//        Log.d("PoseDebug", "hipCond: $hipCond")
+//        Log.d("PoseDebug", "isTrianglePose: $isTrianglePose")
 
 
         val currentTime = System.currentTimeMillis()
