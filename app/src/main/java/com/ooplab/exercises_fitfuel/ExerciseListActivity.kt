@@ -57,7 +57,6 @@ class ExerciseListActivity : AppCompatActivity() {
             ExerciseModel("Mountain Pose", "Normal"),
             ExerciseModel("Easy Pose", "Normal"),
             ExerciseModel("Boat Pose", "Normal"),
-            ExerciseModel("Cat Cow Pose", "Normal"),
             ExerciseModel("Bow Pose", "Normal"),
 
         )

@@ -107,8 +107,7 @@ class ExerciseActivity : AppCompatActivity() {
         "Plank Pose",
         "Chaturanga",
         "Upward Facing Dog",
-        "Downward Facing Dog",
-        "Mountain Pose"
+        "Downward Facing Dog"
     )
     private var currentSunPose: String = sunSalutationPoses[0]
 
@@ -219,7 +218,6 @@ class ExerciseActivity : AppCompatActivity() {
                         "Mountain Pose"      -> exerciseMountainPose(allLandmarks[0])
                         "Easy Pose"          -> exerciseEasyPose(allLandmarks[0])
                         "Boat Pose"          -> exerciseBoatPose(allLandmarks[0])
-                        "Cat Cow Pose"       -> exerciseCatCowPose(allLandmarks[0])
                         "Bow Pose"           -> exerciseBowPose(allLandmarks[0])
                         "Downward Facing Dog"-> exerciseDownwardFacingDogPose(allLandmarks[0])
                         "Triangle Pose"      -> exerciseTrianglePose(allLandmarks[0])
@@ -962,7 +960,8 @@ class ExerciseActivity : AppCompatActivity() {
         }
 
     }
-
+    var GluteBridgecount = 0
+    var GluteBridgeStage = "Hips Down"
     //Strength Exercises
     private fun exerciseGluteBridge(firstPersonLandmarks: MutableList<NormalizedLandmark>)
     {
@@ -1013,14 +1012,23 @@ class ExerciseActivity : AppCompatActivity() {
 
             // Update UI elements (need to run on main thread)
             runOnUiThread {
-                val bothLegsDownCondition = ((angleLeftHip > 115 && angleLeftHip<135) ||
-                        (angleRightHip > 115 &&angleRightHip<135)) && ((angleLeftKnee > 25 && angleLeftKnee<55) || (angleRightKnee > 25 && angleRightKnee<55))
-                val bothLegsUpCondition =
-                    ((angleLeftHip > 169) ||
-                            (angleRightHip > 169)) && ((angleLeftKnee > 65 && angleLeftKnee<95) || (angleRightKnee > 65 && angleRightKnee<95))
+//                Log.d("GluteBridgeDebug","Left Hip Angle: $angleLeftHip")
+//                Log.d("GluteBridgeDebug","Right Hip Angle: $angleRightHip")
+//                Log.d("GluteBridgeDebug","Left Knee Angle: $angleLeftKnee")
+//                Log.d("GluteBridgeDebug","Right Knee Angle: $angleRightKnee")
+
+                val bothLegsUpCondition = (
+                        angleLeftHip in 130.0..180.0 && angleRightHip in 130.0..180.0
+                        )
+
+                val bothLegsDownCondition = (
+                        angleLeftHip in 80.0..110.0 && angleRightHip in 80.0..110.0
+                        )
+                println("Both Legs Down Condition: $bothLegsDownCondition")
+
 
                 //condition to complete the exercise
-                if (count2 >= 3) {
+                if (GluteBridgecount >= 3) {
                     runOnUiThread {
                         Toast.makeText(
                             this@ExerciseActivity,
@@ -1033,36 +1041,21 @@ class ExerciseActivity : AppCompatActivity() {
 
                 // Check the stage and conditions for rep counting
 
-                if (stage == "Hips Up" && bothLegsDownCondition) {
-                    val glutebridge = null
-                    Log.d(glutebridge, "Count incremented to $count")
-
-
-                    // When both legs go back to approximately 180 degrees from 90 degrees, increment rep count
-                    stage = "Hips Down"       // Reset stage to "Down" after counting
-                    count2++
-
+                if (GluteBridgeStage == "Hips Up" && bothLegsDownCondition) {
+                    GluteBridgeStage = "Hips Down"
+                    GluteBridgecount++
+                    Log.d("Reps", "Count: $GluteBridgecount")
                     soundManager.playDownSound()
-//                    lastConditionExecutionTime = System.currentTimeMillis()
-//                    // Reset timer
-//                    scope.launch {
-//                        delayedNoActivitySound()
-//                    }
-                }
-                 else if (bothLegsUpCondition && stage == "Hips Down") {
-                    // When both legs reach approximately 90 degrees, set stage to "Up"
-                    stage = "Hips Up"
+                } else if (GluteBridgeStage == "Hips Down" && bothLegsUpCondition) {
+                    GluteBridgeStage = "Hips Up"
                     soundManager.playUpSound()
-                    // Reset the handler whenever activity is detected
-                    lastConditionExecutionTime = System.currentTimeMillis()
-                    scope.launch {
-                        delayedNoActivitySound()
-                    }
+//                    Log.d("Reps", "Count: $GluteBridgecount")
                 }
+
 
                 // Update TextViews
-                binding.countTextView.text = "Reps: $count2"
-                binding.stageTextView.text = "Position: $stage"
+                binding.countTextView.text = "Reps: $GluteBridgecount"
+                binding.stageTextView.text = "Position: $GluteBridgeStage"
            }
         }
 
@@ -1655,6 +1648,11 @@ class ExerciseActivity : AppCompatActivity() {
      * The detection relies solely on computed joint angles and relative landmark positions.
      * Transition only occurs when the currently expected pose is reliably detected.
      */
+
+    private var poseHoldStartTime: Long = 0L
+    private var lastDetectedPose: String? = null
+    private val HOLD_DURATION_MS = 5000L // 5 seconds
+
     private fun exerciseSunSalutation(firstPersonLandmarks: MutableList<NormalizedLandmark>) {
         // Extract essential landmarks.
         val leftEye = firstPersonLandmarks[2]
@@ -1715,6 +1713,17 @@ class ExerciseActivity : AppCompatActivity() {
             rightHip.x(), rightHip.y(),
             rightKnee.x(), rightKnee.y()
         )
+        val rightShoulderAngle = calculateAngle(
+            rightHip.x(), rightHip.y(),
+            rightShoulder.x(), rightShoulder.y(),
+            rightWrist.x(), rightWrist.y()
+        )
+
+        val leftShoulderAngle = calculateAngle(
+            leftHip.x(), leftHip.y(),
+            leftShoulder.x(), leftShoulder.y(),
+            leftWrist.x(), leftWrist.y()
+        )
 
         // Average y-coordinate values used in some pose detections.
         val avgShoulderY = (leftShoulder.y() + rightShoulder.y()) / 2.0
@@ -1726,76 +1735,126 @@ class ExerciseActivity : AppCompatActivity() {
         when (sunSalutationState) {
 
             0 -> { // Mountain Pose: Upright, arms at sides, nearly extended knees.
+                Log.d("PoseDetection", "im at pos 0 =-=======")
                 if (leftWrist.y() > leftShoulder.y() && rightWrist.y() > rightShoulder.y() &&
                     leftKneeAngle > 170 && rightKneeAngle > 170) {
                     detectedPose = "Mountain Pose"
                 }
             }
             1 -> { // Upward Salute: Arms raised overhead; wrists above shoulders.
+                Log.d("PoseDetection", "im at pos 1 =-=======")
                 if (leftWrist.y() < leftEye.y() && rightWrist.y() < rightEye.y() &&
                     leftKneeAngle > 170 && rightKneeAngle > 170) {
                     detectedPose = "Upward Salute"
                 }
             }
             2 -> { // Forward Bend: Forward flexion indicated by a reduced hip angle (< 100°) on at least one side.
+                Log.d("PoseDetection", "im at pos 2 =-=======")
                 if ((leftHipAngle < 100 || rightHipAngle < 100) &&
-                    // Arms remain hanging (wrists below shoulder level).
-                    leftWrist.y() > leftShoulder.y() && rightWrist.y() > rightShoulder.y()) {
+                    // Arms remain hanging (wrists next to ankel ).
+                    leftWrist.y() - leftAnkle.y() <=3 && rightWrist.y() - rightAnkle.y() <=3) {
                     detectedPose = "Forward Bend"
                 }
             }
-            3 -> { // Plank Pose: Horizontal alignment; hip angles ≥ 155°; moderate elbow flexion.
-                if ((leftHipAngle >= 155 && rightHipAngle >= 155) &&
-                    ((leftElbowAngle in 70.0..115.0) || (rightElbowAngle in 70.0..115.0))) {
+            3 -> {
+                Log.d("PoseDetection", "im at pos 3 =-=======")// Plank Pose: Horizontal alignment; hip angles ≥ 155°; moderate elbow flexion.
+                val hipsStraight = leftHipAngle >= 150 && rightHipAngle >= 150
+                val elbowsExtended = (leftElbowAngle in 150.0..180.0) || (rightElbowAngle in 150.0..180.0)
+                val shouldersProper = rightShoulderAngle in 65.0..80.0 && leftShoulderAngle in 65.0..80.0
+
+                Log.d("PoseDetection", "Hips straight: $hipsStraight ($leftHipAngle, $rightHipAngle) =-=======")
+                Log.d("PoseDetection", "Elbows extended: $elbowsExtended ($leftElbowAngle, $rightElbowAngle) =-=======")
+                Log.d("PoseDetection", "Shoulders proper: $shouldersProper ($rightShoulderAngle, $leftShoulderAngle) =-=======")
+
+                if (hipsStraight && elbowsExtended && shouldersProper) {
                     detectedPose = "Plank Pose"
                 }
             }
-            4 -> { // Chaturanga: Lowered from plank with elbows significantly bent (< 90°).
-                if (leftElbowAngle < 90 && rightElbowAngle < 90 &&
-                    leftHipAngle >= 150 && rightHipAngle >= 150) {
+            4 -> {
+                val elbowsBent = leftElbowAngle in 75.0..97.0 && rightElbowAngle in 75.0..97.0
+                val hipsHigh = leftHipAngle >= 150 && rightHipAngle >= 150
+
+// Debug logging for each condition
+                Log.d("PoseDetection", "Chaturanga elbows bent: $elbowsBent ($leftElbowAngle, $rightElbowAngle) =-=======")
+                Log.d("PoseDetection", "Chaturanga hips high: $hipsHigh ($leftHipAngle, $rightHipAngle) =-=======")
+
+                if (elbowsBent && hipsHigh) {
                     detectedPose = "Chaturanga"
                 }
             }
-            5 -> { // Upward Facing Dog: Chest lifted; elbows nearly extended (> 160°) and hips remain low.
-                if (leftElbowAngle > 160 && rightElbowAngle > 160 &&
+            5 -> {
+                Log.d("PoseDetection", "im at pos 5 =-=======")// Upward Facing Dog: Chest lifted; elbows nearly extended (> 160°) and hips remain low.
+                if (leftElbowAngle in 150.0 .. 180.0 && rightElbowAngle in 150.0 .. 180.0 &&
                     avgHipY > avgShoulderY) {
                     detectedPose = "Upward Facing Dog"
                 }
             }
-            6 -> { // Downward Facing Dog: Inverted V shape; arms extended (elbow angles > 160°)
+            6 -> {
+                Log.d("PoseDetection", "im at pos 6 =-=======")// Downward Facing Dog: Inverted V shape; arms extended (elbow angles > 160°)
                 // and hips elevated relative to shoulders (hips are higher, so avgHipY is lower than avgShoulderY by a margin).
-                if (leftElbowAngle > 160 && rightElbowAngle > 160 &&
-                    avgHipY < (avgShoulderY - 0.1)) {
+                if (leftElbowAngle > 160 && rightElbowAngle > 160 && leftHipAngle in 50.0 .. 70.0 && rightHipAngle in 50.0 .. 70.0) {
                     detectedPose = "Downward Facing Dog"
                 }
-            }
-            7 -> { // Final Mountain Pose to complete the cycle.
-                if (leftWrist.y() > leftShoulder.y() && rightWrist.y() > rightShoulder.y() &&
-                    leftKneeAngle > 170 && rightKneeAngle > 170) {
-                    detectedPose = "Mountain Pose"
-                }
+
             }
 
+
         }
+        Log.d("PoseDetection", "Detected Pose: $detectedPose")
 
         // If the detected pose matches the expected pose for the current state, advance the sequence.
+        // At the end of your function, after detectedPose is determined
         if (detectedPose != null && detectedPose == sunSalutationPoses[sunSalutationState]) {
-            currentSunPose = detectedPose
-            soundManager.playUpSound()  // Trigger a transition sound.
-            // Advance state; wrap-around when the sequence completes.
-            sunSalutationState = (sunSalutationState + 1) % sunSalutationPoses.size
-            // Reset the handler whenever activity is detected
-            lastConditionExecutionTime = System.currentTimeMillis()
-            scope.launch {
-                delayedNoActivitySound()
+            // Check if it's a new detection or continuing to hold
+            if (lastDetectedPose == detectedPose) {
+                val currentTime = System.currentTimeMillis()
+                val elapsedTime = currentTime - poseHoldStartTime
+
+                holdTime = elapsedTime // For displaying time in the UI
+
+                if (elapsedTime >= HOLD_DURATION_MS) {
+                    currentSunPose = detectedPose
+                    soundManager.playUpSound()
+
+                    if (sunSalutationState == sunSalutationPoses.lastIndex) {
+                        endExercise()
+                    } else {
+                        sunSalutationState++
+                    }
+
+                    lastConditionExecutionTime = currentTime
+                    poseHoldStartTime = 0L
+                    lastDetectedPose = null
+                    holdTime = 0L
+
+                    scope.launch {
+                        delayedNoActivitySound()
+                    }
+                }
+
+            } else {
+                // Start tracking new pose hold time
+                poseHoldStartTime = System.currentTimeMillis()
+                lastDetectedPose = detectedPose
             }
+
+        } else {
+            // Reset if incorrect pose
+            poseHoldStartTime = 0L
+            lastDetectedPose = null
+            holdTime = 0L
         }
+
 
         // Update the UI with the current Sun Salutation pose and state.
         runOnUiThread {
-            binding.countTextView.text = "Time: ${holdTime/1000}s"
-            binding.stageTextView.text = "Set: ${setCount}"
+            val nextPoseIndex = (sunSalutationState) % sunSalutationPoses.size
+            val nextPose = sunSalutationPoses[nextPoseIndex]
+
+            binding.stageTextView.text = "Current: ${detectedPose ?: "No Pose"}"
+            binding.countTextView.text = "Hold Time: ${"%.1f".format(holdTime / 1000.0)}s\nNext: $nextPose"
         }
+
     }
 
     // In your exercise function (example shown for Chair Pose)
